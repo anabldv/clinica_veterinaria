@@ -1,6 +1,6 @@
 # Relatório de Entrega — Sprint 1 — Pet & Gatô
 
-**Período:** 12/09/2026 a 18/09/2026
+**Período:** 12/09/2026 a 18/09/2026 <br>
 **Sprint Review:** [data, com quem]
 
 ## 1. Planejado vs. entregue
