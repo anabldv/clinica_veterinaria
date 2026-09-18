@@ -1,7 +1,7 @@
 # Relatório de Entrega — Sprint 1 — Pet & Gatô
 
 **Período:** 12/09/2026 a 18/09/2026 <br>
-**Sprint Review:** [data, com quem]
+**Sprint Review:** 18/09/2026, com Lucas B. F.
 
 ## 1. Planejado vs. entregue
 | História (E2) | Planejada para esta sprint? | Entregue? | Observação |
@@ -9,7 +9,7 @@
 | #1 Cadastro tutor | Sim | Sim | -- |
 | #2 Cadastro animal | Sim | Sim | -- |
 | #3 Segurança de senhas | Sim | Sim | -- |
-| #4 Atualização de prontuário com data de vacinação | Sim | Parcial | (adicionar observação) |
+| #4 Atualização de prontuário com data de vacinação | Sim | Não | Precisa da segregação dos perfis, movida para a sprint 3 |
 
 ## 2. Incremento funcional demonstrável
 [Descrição do que está rodando + link do deploy ou GIF/vídeo + como reproduzir localmente] Exemplo: Login com 2 perfis, CRUD de empresa e convênio funcionando com validação de CNPJ e datas.
@@ -31,6 +31,6 @@ completo: `docs/sprints/sprint-1-evidencias-teste.md`.
 - Relatórios individuais de contribuição: [[Relatórios individuais de contribuição]](https://github.com/Anabe-dev/clinica_veterinaria/tree/main/docs/E5%20-%20Sprint%201/contribuicoes)
 
 ## 6. Riscos/impedimentos para a próxima sprint
-Exemplo: Validação de convênio vigente na criação de vaga ficou mais complexa que o previsto (regra de
-data cruzada com N:N de cursos) — replanejada como primeira tarefa da Sprint 2, com Diego
-assumindo por já ter modelado essa parte no DER.
+O principal ponto identificado para as próximas sprints é a implementação das regras de controle de acesso por perfil e sua integração com as funcionalidades clínicas. A história #4 foi replanejada devido a esse ponto, é necessário garantir que funcionalidades relacionadas ao prontuário e à vacinação sejam acessíveis de acordo com o perfil do usuário, nesse caso, ao perfil do veterinário.
+
+Além disso, a Sprint 2 deverá concentrar esforços nas funcionalidades de gestão de agendamentos, especialmente na prevenção de conflitos de horário, na visualização dos agendamentos por status e veterinário e na validação do intervalo entre doses de vacinas.
