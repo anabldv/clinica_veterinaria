@@ -23,8 +23,9 @@ moveram de "A fazer" para "Concluído", 1 card (#4) ficou em "Em andamento" e fo
 para a Sprint 2.
 
 ## 4. Evidências de teste
-[Resumo — detalhe completo em `sprint-N-evidencias-teste.md`] Exemplo: 6 testes unitários e 2 de integração adicionados nesta sprint, todos passando em CI. Detalhe
-completo: `docs/sprints/sprint-1-evidencias-teste.md`.
+Foram realizados e documentados 8 testes de integração e 4 testes unitários para validação dessa sprint, todos passando em CI. 
+
+Detalhe completo: [evidencias_teste.md](https://github.com/anabldv/clinica_veterinaria/blob/main/docs/E5%20-%20Sprint%201/evidencias_teste.md).
 
 ## 5. Retrospectiva e contribuição individual
 - Ata de retrospectiva: [Ata](https://github.com/Anabe-dev/clinica_veterinaria/blob/main/docs/E5%20-%20Sprint%201/retrospectiva.md)
