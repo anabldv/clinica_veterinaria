@@ -45,6 +45,7 @@ Validação automatizada disparada via workflow do GitHub Actions no Pull Reques
 ### 2.3. Log Detalhado da Execução no Servidor de CI
 Registro de execução da etapa *executar testes* dentro do container Linux (Ubuntu / Python 3.11.16) no GitHub Actions:
 
-<!-- Inserir imagem do log detalhado da etapa de execução dos testes no GitHub Actions -->
+<img width="1515" height="795" alt="image" src="https://github.com/user-attachments/assets/14770fa8-a3c1-4e65-80d6-17b89d3b99e1" />
+
 
 **Resultado:** Execução completa da suíte com código de saída 0 (sucesso), validando o ciclo completo de testes unitários e de integração no ambiente de CI para os 22 testes.
