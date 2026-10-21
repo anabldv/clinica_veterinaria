@@ -35,7 +35,8 @@ Testes automatizados executados na máquina de desenvolvimento via Pytest, garan
 ### 2.2. Integração Contínua (GitHub Actions — Pull Request)
 Validação automatizada disparada via workflow do GitHub Actions no Pull Request da Sprint 3, garantindo conformidade com a branch base (`main`) antes da integração:
 
-<!-- Inserir imagem do Pull Request aprovado no GitHub Actions -->
+<img width="1607" height="792" alt="image" src="https://github.com/user-attachments/assets/3b0585c3-b4a7-4f1a-ba22-ff8658729d95" />
+
 
 **Resultado:** Pipeline concluído com status aprovado (*All checks have passed*) e sem conflitos com a branch base (*No conflicts with base branch*), liberando a integração.
 
