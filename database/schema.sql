@@ -8,7 +8,7 @@ email_usuario   VARCHAR2(50) CONSTRAINT nn_email_usuario NOT NULL,
 senha           VARCHAR2(50) CONSTRAINT nn_senha NOT NULL,
 perfil          VARCHAR2(11) CONSTRAINT nn_perfil NOT NULL,
 CONSTRAINT pk_id_usuario PRIMARY KEY(id_usuario),
-CONSTRAINT ck_email_usuario CHECK(REGEXP_LIKE(email_usuario, '^[A-Za-z0-9._%+-]+@petegato\.com$'),
+CONSTRAINT ck_email_usuario CHECK(REGEXP_LIKE(email_usuario, '^[A-Za-z0-9._%+-]+@petegato\.com$')),
 CONSTRAINT ck_senha CHECK(
                         LENGTH(senha) >= 8
                         AND REGEXP_LIKE(senha, '[A-Z]')
@@ -78,8 +78,6 @@ vacina          VARCHAR2(200),
 CONSTRAINT pk_id_prontuario PRIMARY KEY(id_prontuario),
 CONSTRAINT fk_tb_prontuario_crmv FOREIGN KEY(crmv)
     REFERENCES tb_veterinario(crmv),
-CONSTRAINT fk_tb_prontuario_id_tutor FOREIGN KEY(id_tutor)
-    REFERENCES tb_tutor(id_tutor),
 CONSTRAINT fk_tb_prontuario_id_animal FOREIGN KEY(id_animal)
     REFERENCES tb_animal(id_animal),
 CONSTRAINT ck_peso_atual CHECK(peso_atual > 0));
@@ -110,7 +108,7 @@ CONSTRAINT fk_tb_atendimento_id_prontuario FOREIGN KEY(id_prontuario)
     REFERENCES tb_prontuario(id_prontuario));
 
 CREATE TABLE tb_vacinacao(
-data_aplicacao      TIMESTAMP,
+data_aplicacao      DATE,
 crmv                INTEGER CONSTRAINT nn_tb_vacinacaco_crmv NOT NULL,
 id_prontuario       INTEGER CONSTRAINT nn_tb_vacinacao_id_prontuario NOT NULL,
 nome_vacina         VARCHAR2(30) CONSTRAINT nn_nome_vacina NOT NULL,
