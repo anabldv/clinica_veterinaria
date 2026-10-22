@@ -22,7 +22,7 @@ Módulo clínico completo contemplando a **Gestão de Internações**, **Evoluç
 
 O sistema possibilita a admissão e triagem de internações com classificação por nível de gravidade (`Baixa`, `Medio`, `Alta`, `Critica`), detalhamento da ficha clínica do paciente vinculado ao tutor, controle rigoroso de passagem de plantão (com validação automatizada de turno para impedir anotações concorrentes ou duplicadas por animal) e indicadores em tempo real para a recepção e corpo médico. Ambiente executável localmente via FastAPI/Uvicorn, com suíte automatizada de testes e pipeline de integração contínua (GitHub Actions) aprovado.
 
-* **Vídeo de demonstração:** [Assistir demonstração no Google Drive]
+* **Vídeo de demonstração:** https://drive.google.com/file/d/1QFx53SzblnLiQs3hJvWMZdTxuP10qkSB/view?usp=sharing
 
 **Passo a passo para reproduzir localmente:**
 1. Acessar a pasta do backend: `cd backend`
