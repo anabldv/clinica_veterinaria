@@ -1,7 +1,7 @@
-# Refatoração e validações clínicas finais - Sprint 3 (Pet & Gatô)
 import re
+import oracledb 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optiona
+from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -12,6 +12,13 @@ app = FastAPI(
     version="3.0.0",
     description="API REST para controle clínico, cadastros, agendamentos, internações e plantão veterinário."
 )
+
+DB_USER = "clinica_veterinaria"
+DB_PASSWORD = "clinica_senha"
+DB_DSN = "localhost:1521/freepdb1"
+
+def obter_conexao():
+    return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
 
 # Converte erros de validação Pydantic no padrão esperado pelo CT02
 @app.exception_handler(RequestValidationError)
@@ -88,8 +95,8 @@ class AnimalCadastro(BaseModel):
 
 class AgendamentoCadastro(BaseModel):
     id_animal: int
-    id_tutor: int
-    veterinario: str
+    crmv: int
+    matricula: int
     data_hora: datetime
     tipo_servico: str
     nome_vacina: Optional[str] = None
@@ -173,87 +180,145 @@ def obter_identificador_plantao_atual(dt: datetime) -> str:
 
 @app.post("/usuarios", status_code=status.HTTP_201_CREATED, tags=["Usuários"])
 def cadastrar_usuario(usuario: UsuarioCadastro):
-    for u in banco_usuarios.values():
-        if u["email"] == usuario.email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"mensagem": "E-mail já cadastrado no sistema."}
-            )
-    novo_id = len(banco_usuarios) + 1
-    novo_usuario = {
-        "id_usuario": novo_id,
-        "nome": usuario.nome,
-        "email": usuario.email,
-        "perfil": usuario.perfil
-    }
-    banco_usuarios[novo_id] = novo_usuario
-    return {"usuario": novo_usuario, "mensagem": "Usuário criado com sucesso"}
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT NVL(MAX(id_usuario), 0) + 1 FROM tb_usuario")
+        novo_id = cursor.fetchone()[0]
+        
+        sql = """
+            INSERT INTO tb_usuario (id_usuario, nome_usuario, email_usuario, senha, perfil)
+            VALUES (:id, :nome, :email, :senha, :perfil)
+        """
+        cursor.execute(sql, {
+            "id": novo_id,
+            "nome": usuario.nome,
+            "email": usuario.email,
+            "senha": usuario.senha,
+            "perfil": usuario.perfil
+        })
+        conexao.commit()
+        return {"usuario": {"id_usuario": novo_id, "nome": usuario.nome, "email": usuario.email, "perfil": usuario.perfil}, "mensagem": "Usuário criado com sucesso"}
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.post("/tutores", status_code=status.HTTP_201_CREATED, tags=["Tutores"])
 def cadastrar_tutor(tutor: TutorCadastro):
-    cpf_limpo = re.sub(r"\D", "", tutor.cpf)
-    
-    for t in banco_tutores.values():
-        t_cpf_limpo = re.sub(r"\D", "", str(t.get("cpf", "")))
-        if t_cpf_limpo == cpf_limpo:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="CPF já cadastrado no sistema."
-            )
-            
-    novo_id = len(banco_tutores) + 1
-    novo_tutor = {
-        "id_tutor": novo_id,
-        "nome": tutor.nome,
-        "cpf": cpf_limpo,
-        "telefone": tutor.telefone,
-        "email": tutor.email,
-        "cidade": tutor.cidade,
-        "observacoes": tutor.observacoes
-    }
-    banco_tutores[novo_id] = novo_tutor
-    return {"tutor": novo_tutor, "mensagem": "Tutor cadastrado com sucesso"}
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT NVL(MAX(id_tutor), 0) + 1 FROM tb_tutor")
+        novo_id = cursor.fetchone()[0]
+        
+        sql = """
+            INSERT INTO tb_tutor (id_tutor, nome_tutor, cpf_tutor, email_tutor, telefone, observacoes)
+            VALUES (:id, :nome, :cpf, :email, :tel, :observacoes)
+        """
+        cursor.execute(sql, {
+            "id": novo_id, 
+            "nome": tutor.nome, 
+            "cpf": tutor.cpf, 
+            "email": tutor.email, 
+            "tel": tutor.telefone,
+            "observacoes": tutor.observacoes,
+        })
+        conexao.commit()
+        return {"mensagem": "Tutor cadastrado com sucesso!", "id_tutor": novo_id}
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/tutores", status_code=status.HTTP_200_OK, tags=["Tutores"])
 def listar_tutores():
-    return list(banco_tutores.values())
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT id_tutor, nome_tutor, cpf_tutor, email_tutor, telefone, observacoes FROM tb_tutor")
+        colunas = [col[0].lower() for col in cursor.description]
+        tutores = [dict(zip(colunas, row)) for row in cursor.fetchall()]
+        return tutores
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/tutores/{id_tutor}", status_code=status.HTTP_200_OK, tags=["Tutores"])
 def buscar_tutor(id_tutor: int):
-    if id_tutor in banco_tutores:
-        return {"tutor": banco_tutores[id_tutor]}
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Tutor com ID {id_tutor} não encontrado.")
-
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute(
+            "SELECT id_tutor, nome_tutor, cpf_tutor, email_tutor, telefone, observacoes FROM tb_tutor WHERE id_tutor = :id",
+            {"id": id_tutor}
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Tutor com ID {id_tutor} não encontrado.")
+        
+        colunas = [col[0].lower() for col in cursor.description]
+        return {"tutor": dict(zip(colunas, row))}
+    finally:
+        cursor.close()
+        conexao.close()
+        
 
 @app.post("/animais", status_code=status.HTTP_201_CREATED, tags=["Animais"])
 def cadastrar_animal(animal: AnimalCadastro):
-    if animal.id_tutor not in banco_tutores:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Tutor com ID {animal.id_tutor} não encontrado."
-        )
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tb_tutor WHERE id_tutor = :id", {"id": animal.id_tutor})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=404, detail=f"Tutor com ID {animal.id_tutor} não encontrado.")
 
-    novo_id = len(banco_animais) + 1
-    novo_animal = {
-        "id_animal": novo_id,
-        "id_tutor": animal.id_tutor,
-        "nome": animal.nome,
-        "tipo_animal": animal.tipo_animal or animal.especie,
-        "raca": animal.raca,
-        "sexo": animal.sexo,
-        "idade": animal.idade,
-        "data_nascimento": animal.data_nascimento
-    }
-    banco_animais[novo_id] = novo_animal
-    return {"animal": novo_animal, "mensagem": "Animal cadastrado com sucesso"}
+        cursor.execute("SELECT NVL(MAX(id_animal), 0) + 1 FROM tb_animal")
+        novo_id = cursor.fetchone()[0]
+        
+        sql = """
+            INSERT INTO tb_animal (id_animal, id_tutor, nome_animal, tipo_animal, raca, sexo)
+            VALUES (:id, :tutor, :nome, :tipo, :raca, :sexo)
+        """
+        cursor.execute(sql, {
+            "id": novo_id,
+            "tutor": animal.id_tutor,
+            "nome": animal.nome,
+            "tipo": animal.tipo_animal or animal.especie,
+            "raca": animal.raca,
+            "sexo": animal.sexo
+        })
+        conexao.commit()
+        return {"animal": {"id_animal": novo_id, **animal.model_dump()}, "mensagem": "Animal cadastrado com sucesso"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/animais", status_code=status.HTTP_200_OK, tags=["Animais"])
 def listar_animais():
-    return list(banco_animais.values())
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT id_animal, id_tutor, nome_animal, tipo_animal, raca, sexo FROM tb_animal")
+        colunas = [col[0].lower() for col in cursor.description]
+        animais = [dict(zip(colunas, row)) for row in cursor.fetchall()]
+        return animais
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 # ==============================================================================
@@ -262,88 +327,50 @@ def listar_animais():
 
 @app.post("/agendamentos", status_code=status.HTTP_201_CREATED, tags=["Agendamentos"])
 def criar_agendamento(agendamento: AgendamentoCadastro):
-    agora = datetime.now()
-    if agendamento.data_hora < agora:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Não é permitido realizar agendamentos em datas retroativas."
-        )
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        crmv = getattr(agendamento, "crmv", None)
+        matricula = getattr(agendamento, "matricula", None)
 
-    if agendamento.id_tutor not in banco_tutores:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Tutor com ID {agendamento.id_tutor} não encontrado."
-        )
-
-    if agendamento.id_animal not in banco_animais:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Animal com ID {agendamento.id_animal} não encontrado."
-        )
-
-    for ag in banco_agendamentos.values():
-        if (
-            ag["veterinario"].strip().lower() == agendamento.veterinario.strip().lower()
-            and ag["data_hora"] == agendamento.data_hora
-            and ag["status"] != "CANCELADO"
-        ):
+        if not crmv or not matricula:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Horário indisponível para {agendamento.veterinario}."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="É obrigatório informar o CRMV do veterinário e a Matrícula do recepcionista."
             )
 
-    tipo_servico_lower = agendamento.tipo_servico.lower()
-    if "vacina" in tipo_servico_lower:
-        intervalo_minimo = timedelta(days=21)
-        
-        # 1. Histórico prévio de vacinas aplicadas
-        historico_animal = banco_vacinas_aplicadas.get(agendamento.id_animal, [])
-        for vacina_passada in historico_animal:
-            data_passada = vacina_passada.get("data_aplicacao")
-            if data_passada:
-                diferenca = abs(agendamento.data_hora - data_passada)
-                if diferenca < intervalo_minimo:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="É necessário respeitar no mínimo 21 dias de intervalo entre aplicações de vacina."
-                    )
+        cursor.execute("SELECT COUNT(*) FROM tb_veterinario WHERE crmv = :crmv", {"crmv": crmv})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Veterinário com CRMV {crmv} não encontrado.")
 
-        # 2. Outros agendamentos de vacina já existentes
-        for ag in banco_agendamentos.values():
-            if (
-                ag["id_animal"] == agendamento.id_animal
-                and "vacina" in ag["tipo_servico"].lower()
-                and ag["status"] != "CANCELADO"
-            ):
-                diferenca = abs(agendamento.data_hora - ag["data_hora"])
-                if diferenca < intervalo_minimo:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="É necessário respeitar no mínimo 21 dias de intervalo entre aplicações de vacina."
-                    )
+        cursor.execute("SELECT COUNT(*) FROM tb_recepcao WHERE matricula = :mat", {"mat": matricula})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Recepcionista com matrícula {matricula} não encontrado.")
 
-    novo_id = len(banco_agendamentos) + 1
-    dados_agendamento = {
-        "id_agendamento": novo_id,
-        "id": novo_id,
-        "id_animal": agendamento.id_animal,
-        "id_tutor": agendamento.id_tutor,
-        "veterinario": agendamento.veterinario,
-        "data_hora": agendamento.data_hora,
-        "tipo_servico": agendamento.tipo_servico,
-        "nome_vacina": agendamento.nome_vacina,
-        "observacoes": agendamento.observacoes,
-        "status": "AGENDADO",
-        "criado_em": agora
-    }
-    banco_agendamentos[novo_id] = dados_agendamento
-    return {
-        "mensagem": "Agendamento realizado com sucesso",
-        "agendamento": dados_agendamento,
-        "id_agendamento": novo_id,
-        "id": novo_id,
-        "status": "AGENDADO"
-    }
+        cursor.execute("SELECT COUNT(*) FROM tb_animal WHERE id_animal = :id", {"id": agendamento.id_animal})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Animal com ID {agendamento.id_animal} não encontrado.")
+
+        sql = """
+            INSERT INTO tb_agendamento (hora_agendamento, id_animal, crmv, matricula, status_agendamento)
+            VALUES (:data_hora, :id_animal, :crmv, :matricula, 'Agendado')
+        """
+        cursor.execute(sql, {
+            "data_hora": agendamento.data_hora,
+            "id_animal": agendamento.id_animal,
+            "crmv": crmv,
+            "matricula": matricula
+        })
+        conexao.commit()
+        return {"mensagem": "Agendamento realizado com sucesso", "status": "Agendado"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/agendamentos", status_code=status.HTTP_200_OK, tags=["Agendamentos"])
@@ -351,38 +378,77 @@ def listar_agendamentos(
     veterinario: Optional[str] = None,
     status_consulta: Optional[str] = None
 ):
-    resultado = list(banco_agendamentos.values())
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        sql = """
+            SELECT a.hora_agendamento, a.id_animal, a.crmv, a.matricula, a.status_agendamento,
+                   u.nome_usuario AS nome_veterinario
+            FROM tb_agendamento a
+            JOIN tb_veterinario v ON a.crmv = v.crmv
+            JOIN tb_usuario u ON v.id_usuario = u.id_usuario
+            WHERE 1=1
+        """
+        params = {}
+        if status_consulta:
+            sql += " AND UPPER(a.status_agendamento) = UPPER(:status_consulta)"
+            params["status_consulta"] = status_consulta.strip()
 
-    if veterinario:
-        resultado = [
-            ag for ag in resultado
-            if ag["veterinario"].strip().lower() == veterinario.strip().lower()
-        ]
+        cursor.execute(sql, params)
+        colunas = [col[0].lower() for col in cursor.description]
+        agendamentos = [dict(zip(colunas, row)) for row in cursor.fetchall()]
 
-    if status_consulta:
-        resultado = [
-            ag for ag in resultado
-            if ag["status"].strip().upper() == status_consulta.strip().upper()
-        ]
+        if veterinario:
+            agendamentos = [
+                ag for ag in agendamentos 
+                if ag.get("nome_veterinario") and ag["nome_veterinario"].strip().lower() == veterinario.strip().lower()
+            ]
 
-    return resultado
+        return agendamentos
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.patch("/agendamentos/{id_agendamento}/cancelar", status_code=status.HTTP_200_OK, tags=["Agendamentos"])
 def cancelar_agendamento(id_agendamento: int):
-    if id_agendamento in banco_agendamentos:
-        banco_agendamentos[id_agendamento]["status"] = "CANCELADO"
-        return {
-            "agendamento": banco_agendamentos[id_agendamento],
-            "id_agendamento": id_agendamento,
-            "status": "CANCELADO",
-            "mensagem": "Agendamento cancelado com sucesso."
-        }
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("""
+            SELECT id_animal, status_agendamento 
+            FROM tb_agendamento 
+            WHERE id_animal = :id AND status_agendamento != 'Cancelado'
+        """, {"id": id_agendamento})
+        
+        registro = cursor.fetchone()
+        if not registro:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Nenhum agendamento ativo encontrado para o ID informado ({id_agendamento})."
+            )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Agendamento não encontrado para cancelamento."
-    )
+        sql = """
+            UPDATE tb_agendamento 
+            SET status_agendamento = 'Cancelado' 
+            WHERE id_animal = :id AND status_agendamento != 'Cancelado'
+        """
+        cursor.execute(sql, {"id": id_agendamento})
+        conexao.commit()
+
+        return {
+            "id_agendamento": id_agendamento,
+            "status": "Cancelado",
+            "mensagem": "Agendamento cancelado com sucesso no banco Oracle."
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 # ==============================================================================
@@ -391,270 +457,331 @@ def cancelar_agendamento(id_agendamento: int):
 
 @app.post("/prontuarios", status_code=status.HTTP_201_CREATED, tags=["Prontuários"])
 def criar_prontuario(prontuario: ProntuarioCadastro, request: Request):
-    """
-    História 4: Veterinário atualiza prontuário e dados de vacinação.
-    História 9: Restrito ao perfil de Veterinário (Header 'X-Perfil').
-    """
-    x_perfil = request.headers.get("x-perfil", "").strip().lower()
-    if x_perfil != "veterinario":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado. Apenas veterinários podem editar prontuários e registros clínicos."
-        )
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tb_veterinario WHERE crmv = :crmv", {"crmv": prontuario.crmv})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Veterinário com CRMV {prontuario.crmv} não encontrado.")
 
-    if prontuario.id_animal not in banco_animais:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Animal não encontrado.")
-    
-    if prontuario.peso_atual <= 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O peso atual deve ser maior que zero.")
+        cursor.execute("SELECT COUNT(*) FROM tb_animal WHERE id_animal = :id", {"id": prontuario.id_animal})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Animal com ID {prontuario.id_animal} não encontrado.")
 
-    novo_id = len(banco_prontuarios) + 1
-    registro = {
-        "id_prontuario": novo_id,
-        "crmv": prontuario.crmv,
-        "id_animal": prontuario.id_animal,
-        "id_tutor": prontuario.id_tutor,
-        "data_abertura": datetime.now(),
-        "peso_atual": prontuario.peso_atual,
-        "queixa": prontuario.queixa,
-        "anamnese": prontuario.anamnese,
-        "diagnostico": prontuario.diagnostico,
-        "receita": prontuario.receita,
-        "vacina": prontuario.vacina
-    }
+        cursor.execute("SELECT NVL(MAX(id_prontuario), 0) + 1 FROM tb_prontuario")
+        novo_id = cursor.fetchone()[0]
 
-    if prontuario.id_animal not in banco_prontuarios:
-        banco_prontuarios[prontuario.id_animal] = []
-    banco_prontuarios[prontuario.id_animal].append(registro)
-
-    if prontuario.vacina or prontuario.data_vacinacao:
-        dados_vacina = {
-            "data_aplicacao": prontuario.data_vacinacao or datetime.now(),
+        sql = """
+            INSERT INTO tb_prontuario (id_prontuario, crmv, id_animal, peso_atual, queixa, anamnese, diagnostico, receita, vacina)
+            VALUES (:id, :crmv, :animal, :peso, :queixa, :anamnese, :diag, :receita, :vacina)
+        """
+        cursor.execute(sql, {
+            "id": novo_id,
             "crmv": prontuario.crmv,
-            "id_prontuario": novo_id,
-            "nome_vacina": prontuario.vacina or "Vacina Padrão",
-            "lote_vacina": prontuario.lote_vacina or "LOTE-000",
-            "data_proxima_dose": prontuario.data_proxima_dose
-        }
-        if prontuario.id_animal not in banco_vacinacoes:
-            banco_vacinacoes[prontuario.id_animal] = []
-        banco_vacinacoes[prontuario.id_animal].append(dados_vacina)
-
-    return {"mensagem": "Prontuário criado com sucesso", "prontuario": registro}
+            "animal": prontuario.id_animal,
+            "peso": prontuario.peso_atual,
+            "queixa": prontuario.queixa,
+            "anamnese": prontuario.anamnese,
+            "diag": prontuario.diagnostico,
+            "receita": prontuario.receita,
+            "vacina": prontuario.vacina
+        })
+        conexao.commit()
+        return {"mensagem": "Prontuário criado com sucesso", "id_prontuario": novo_id}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/animais/{id_animal}/prontuarios", status_code=status.HTTP_200_OK, tags=["Prontuários"])
 def listar_prontuarios_animal(id_animal: int):
-    """Consulta o histórico de prontuários e vacinações do animal."""
-    if id_animal not in banco_animais:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Animal não encontrado.")
-    return {
-        "id_animal": id_animal,
-        "prontuarios": banco_prontuarios.get(id_animal, []),
-        "vacinacoes": banco_vacinacoes.get(id_animal, [])
-    }
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tb_animal WHERE id_animal = :id", {"id": id_animal})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Animal não encontrado.")
 
+        cursor.execute(
+            "SELECT id_prontuario, crmv, id_animal, data_abertura, peso_atual, queixa, anamnese, diagnostico, receita, vacina "
+            "FROM tb_prontuario WHERE id_animal = :id",
+            {"id": id_animal}
+        )
+        colunas_pront = [col[0].lower() for col in cursor.description]
+        prontuarios = [dict(zip(colunas_pront, row)) for row in cursor.fetchall()]
 
-# ------------------------------------------------------------------------------
-# HISTÓRIA 13: Anotações de Evolução de Plantão (SHOULD)
-# Critério: "Somente uma atualização por plantão. Uma anotação para cada animal."
-# ------------------------------------------------------------------------------
+        cursor.execute(
+            "SELECT v.data_aplicacao, v.crmv, v.id_prontuario, v.nome_vacina, v.lote_vacina, v.data_proxima_dose "
+            "FROM tb_vacinacao v "
+            "JOIN tb_prontuario p ON v.id_prontuario = p.id_prontuario "
+            "WHERE p.id_animal = :id",
+            {"id": id_animal}
+        )
+        colunas_vac = [col[0].lower() for col in cursor.description]
+        vacinacoes = [dict(zip(colunas_vac, row)) for row in cursor.fetchall()]
+
+        return {
+            "id_animal": id_animal,
+            "prontuarios": prontuarios,
+            "vacinacoes": vacinacoes
+        }
+    finally:
+        cursor.close()
+        conexao.close()
+
 
 @app.post("/plantao", status_code=status.HTTP_201_CREATED, tags=["Plantão"])
 def registrar_plantao(plantao: PlantaoCadastro, request: Request):
-    """
-    História 13: Registra evolução clínica no plantão.
-    Validação de Negócio: Bloqueia mais de uma anotação por animal no mesmo plantão.
-    """
-    x_perfil = request.headers.get("x-perfil", "").strip().lower()
-    if x_perfil != "veterinario":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado. Apenas veterinários podem realizar anotações de plantão."
-        )
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tb_veterinario WHERE crmv = :crmv", {"crmv": plantao.crmv})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Veterinário com CRMV {plantao.crmv} não encontrado.")
 
-    if not plantao.id_animal or plantao.id_animal not in banco_animais:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Animal não encontrado para registro de plantão."
-        )
+        cursor.execute("SELECT id_tutor FROM tb_animal WHERE id_animal = :id", {"id": plantao.id_animal})
+        res_animal = cursor.fetchone()
+        if not res_animal:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Animal com ID {plantao.id_animal} não encontrado.")
 
-    agora = datetime.now()
-    plantao_atual = obter_identificador_plantao_atual(agora)
+        id_tutor_final = plantao.id_tutor or res_animal[0]
 
-    # Bloqueio de regra de negócio: 1 anotação por animal por plantão
-    historico_animal = banco_plantoes.get(plantao.id_animal, [])
-    for registro in historico_animal:
-        if registro.get("turno_plantao") == plantao_atual:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Bloqueio de Regra: O animal já possui evolução registrada neste plantão ({plantao_atual})."
-            )
+        cursor.execute("SELECT NVL(MAX(id_plantao), 0) + 1 FROM tb_plantao")
+        novo_id = cursor.fetchone()[0]
 
-    animal = banco_animais[plantao.id_animal]
-    id_tutor = plantao.id_tutor or animal.get("id_tutor")
-
-    novo_id = len(banco_plantoes) + 1
-    dados = {
-        "id_plantao": novo_id,
-        "id_animal": plantao.id_animal,
-        "nome_animal": animal.get("nome"),
-        "id_tutor": id_tutor,
-        "crmv": plantao.crmv,
-        "chegada_plantao": agora,
-        "turno_plantao": plantao_atual,
-        "status_plantao": "Em analise",
-        "evolucao_plantao": plantao.evolucao_plantao
-    }
-
-    if plantao.id_animal not in banco_plantoes:
-        banco_plantoes[plantao.id_animal] = []
-    banco_plantoes[plantao.id_animal].append(dados)
-
-    return {
-        "mensagem": "Anotação de plantão registrada com sucesso.",
-        "plantao": dados
-    }
+        sql = """
+            INSERT INTO tb_plantao (id_plantao, id_animal, id_tutor, crmv, status_plantao, evolucao_plantao)
+            VALUES (:id, :animal, :tutor, :crmv, 'Em analise', :evolucao)
+        """
+        cursor.execute(sql, {
+            "id": novo_id,
+            "animal": plantao.id_animal,
+            "tutor": id_tutor_final,
+            "crmv": plantao.crmv,
+            "evolucao": plantao.evolucao_plantao
+        })
+        conexao.commit()
+        return {"mensagem": "Anotação de plantão registrada com sucesso.", "id_plantao": novo_id}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/plantao/{id_animal}", status_code=status.HTTP_200_OK, tags=["Plantão"])
 def listar_plantoes_animal(id_animal: int):
-    """Lista as evoluções de plantão registradas para um determinado animal."""
-    if id_animal not in banco_animais:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Animal não encontrado.")
-    return banco_plantoes.get(id_animal, [])
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tb_animal WHERE id_animal = :id", {"id": id_animal})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Animal não encontrado.")
 
+        cursor.execute(
+            "SELECT id_plantao, id_animal, id_tutor, crmv, chegada_plantao, status_plantao, evolucao_plantao "
+            "FROM tb_plantao WHERE id_animal = :id",
+            {"id": id_animal}
+        )
+        colunas = [col[0].lower() for col in cursor.description]
+        return [dict(zip(colunas, row)) for row in cursor.fetchall()]
+    finally:
+        cursor.close()
+        conexao.close()
 
-# ------------------------------------------------------------------------------
-# HISTÓRIA 14: Gestão de Internações e Nível de Gravidade (SHOULD)
-# Critério: "Identificação do Animal e Tutor, status atualizado,
-# lista por nível de gravidade e detalhamento do caso."
-# ------------------------------------------------------------------------------
 
 @app.post("/internacoes", status_code=status.HTTP_201_CREATED, tags=["Internações"])
 def criar_internacao(internacao: InternacaoCadastro):
-    """Cria uma nova internação classificando gravidade e vinculando pet e tutor."""
-    if internacao.id_animal not in banco_animais:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Animal não encontrado.")
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tb_veterinario WHERE crmv = :crmv", {"crmv": internacao.crmv})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Veterinário com CRMV {internacao.crmv} não encontrado.")
 
-    niveis_validos = ["Baixa", "Medio", "Alta", "Critica"]
-    gravidade_capitalizada = internacao.nivel_gravidade.capitalize()
-    if gravidade_capitalizada not in niveis_validos:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Nível de gravidade inválido. Valores aceitos: {niveis_validos}"
-        )
+        cursor.execute("SELECT COUNT(*) FROM tb_animal WHERE id_animal = :id", {"id": internacao.id_animal})
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Animal com ID {internacao.id_animal} não encontrado.")
 
-    # Impede internação duplicada se o pet já estiver internado
-    for inter in banco_internacoes.values():
-        if inter["id_animal"] == internacao.id_animal and inter["status_internacao"] == "Internado":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="O animal informado já consta como atualmente internado."
-            )
+        cursor.execute("SELECT NVL(MAX(id_internacao), 0) + 1 FROM tb_internacao")
+        novo_id = cursor.fetchone()[0]
 
-    animal = banco_animais[internacao.id_animal]
-    tutor = banco_tutores.get(animal["id_tutor"], {})
-
-    novo_id = len(banco_internacoes) + 1
-    dados = {
-        "id_internacao": novo_id,
-        "id_animal": internacao.id_animal,
-        "animal_nome": animal.get("nome"),
-        "especie": animal.get("tipo_animal"),
-        "id_tutor": animal.get("id_tutor"),
-        "tutor_nome": tutor.get("nome"),
-        "tutor_contato": tutor.get("telefone"),
-        "crmv": internacao.crmv,
-        "data_internacao": datetime.now(),
-        "nivel_gravidade": gravidade_capitalizada,
-        "status_internacao": "Internado",
-        "motivo": internacao.motivo,
-        "observacoes": internacao.observacoes
-    }
-    banco_internacoes[novo_id] = dados
-    return {"mensagem": "Internação registrada com sucesso.", "internacao": dados}
+        sql = """
+            INSERT INTO tb_internacao (id_internacao, id_animal, crmv, nivel_gravidade, status_internacao, evolucao_internacao)
+            VALUES (:id, :animal, :crmv, :gravidade, 'Internado', :motivo)
+        """
+        cursor.execute(sql, {
+            "id": novo_id,
+            "animal": internacao.id_animal,
+            "crmv": internacao.crmv,
+            "gravidade": internacao.nivel_gravidade.capitalize(),
+            "motivo": internacao.motivo
+        })
+        conexao.commit()
+        return {"mensagem": "Internação registrada com sucesso.", "id_internacao": novo_id}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/internacoes", status_code=status.HTTP_200_OK, tags=["Internações"])
-def listar_internacoes(
-    nivel_gravidade: Optional[str] = None,
-    status_internacao: Optional[str] = None
-):
-    """Lista internações permitindo filtrar por nível de gravidade e/ou status."""
-    resultado = list(banco_internacoes.values())
-
-    if nivel_gravidade:
-        resultado = [
-            i for i in resultado
-            if i["nivel_gravidade"].lower() == nivel_gravidade.lower()
-        ]
-
-    if status_internacao:
-        resultado = [
-            i for i in resultado
-            if i["status_internacao"].lower() == status_internacao.lower()
-        ]
-
-    return resultado
+def listar_internacoes():
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("""
+            SELECT id_internacao, id_animal, crmv, data_internacao, data_alta, 
+                   nivel_gravidade, status_internacao, evolucao_internacao 
+            FROM tb_internacao
+        """)
+        colunas = [col[0].lower() for col in cursor.description]
+        internacoes = [dict(zip(colunas, row)) for row in cursor.fetchall()]
+        return internacoes
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.get("/internacoes/{id_internacao}", status_code=status.HTTP_200_OK, tags=["Internações"])
 def buscar_detalhes_internacao(id_internacao: int):
-    """Traz informações detalhadas do caso de internação, histórico de plantão, pet e tutor."""
-    if id_internacao not in banco_internacoes:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Internação não encontrada.")
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute(
+            "SELECT id_internacao, id_animal, crmv, data_internacao, data_alta, "
+            "nivel_gravidade, status_internacao, evolucao_internacao "
+            "FROM tb_internacao WHERE id_internacao = :id",
+            {"id": id_internacao}
+        )
+        row_int = cursor.fetchone()
+        if not row_int:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Internação não encontrada.")
+        
+        colunas_int = [col[0].lower() for col in cursor.description]
+        internacao = dict(zip(colunas_int, row_int))
+        id_animal = internacao["id_animal"]
 
-    internacao = banco_internacoes[id_internacao]
-    id_animal = internacao["id_animal"]
+        cursor.execute(
+            "SELECT id_animal, id_tutor, nome_animal, tipo_animal, raca, sexo FROM tb_animal WHERE id_animal = :id",
+            {"id": id_animal}
+        )
+        row_anim = cursor.fetchone()
+        detalhes_animal = dict(zip([col[0].lower() for col in cursor.description], row_anim)) if row_anim else {}
 
-    return {
-        "internacao": internacao,
-        "detalhes_animal": banco_animais.get(id_animal, {}),
-        "historico_evolucoes_plantao": banco_plantoes.get(id_animal, [])
-    }
+        cursor.execute(
+            "SELECT id_plantao, id_animal, crmv, chegada_plantao, status_plantao, evolucao_plantao "
+            "FROM tb_plantao WHERE id_animal = :id",
+            {"id": id_animal}
+        )
+        colunas_pl = [col[0].lower() for col in cursor.description]
+        evolucoes = [dict(zip(colunas_pl, row)) for row in cursor.fetchall()]
+
+        return {
+            "internacao": internacao,
+            "detalhes_animal": detalhes_animal,
+            "historico_evolucoes_plantao": evolucoes
+        }
+    finally:
+        cursor.close()
+        conexao.close()
 
 
 @app.patch("/internacoes/{id_internacao}/status", status_code=status.HTTP_200_OK, tags=["Internações"])
 def atualizar_status_internacao(id_internacao: int, dados: StatusInternacaoUpdate):
-    """Atualiza o status clínico da internação (ex: Alta Médica, Em Observação)."""
-    if id_internacao not in banco_internacoes:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Internação não encontrada.")
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        status_map = {
+            "internado": "Internado",
+            "em observação": "Internado",
+            "alta médica": "Alta",
+            "alta": "Alta",
+            "óbito": "Obito",
+            "obito": "Obito"
+        }
+        
+        status_normalizado = status_map.get(dados.status_internacao.strip().lower())
+        if not status_normalizado:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Status de internação inválido. Valores aceitos: 'Internado', 'Alta', 'Obito'."
+            )
 
-    banco_internacoes[id_internacao]["status_internacao"] = dados.status_internacao
-    if dados.observacoes:
-        banco_internacoes[id_internacao]["observacoes"] = dados.observacoes
+        cursor.execute("SELECT id_internacao FROM tb_internacao WHERE id_internacao = :id", {"id": id_internacao})
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Internação com ID {id_internacao} não encontrada."
+            )
 
-    return {
-        "mensagem": "Status da internação atualizado com sucesso.",
-        "internacao": banco_internacoes[id_internacao]
-    }
+        if dados.observacoes:
+            sql = """
+                UPDATE tb_internacao 
+                SET status_internacao = :status, evolucao_internacao = :obs 
+                WHERE id_internacao = :id
+            """
+            cursor.execute(sql, {"status": status_normalizado, "obs": dados.observacoes, "id": id_internacao})
+        else:
+            sql = """
+                UPDATE tb_internacao 
+                SET status_internacao = :status 
+                WHERE id_internacao = :id
+            """
+            cursor.execute(sql, {"status": status_normalizado, "id": id_internacao})
 
+        conexao.commit()
 
-# ------------------------------------------------------------------------------
-# HISTÓRIA 15: Resumo do Dashboard (SHOULD)
-# Critério: "Resumo dos clientes cadastrados, agendamentos e internações em tempo real."
-# ------------------------------------------------------------------------------
+        return {
+            "mensagem": "Status da internação atualizado com sucesso no Oracle.",
+            "id_internacao": id_internacao,
+            "status_internacao": status_normalizado
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    finally:
+        cursor.close()
+        conexao.close()
+
 
 @app.get("/dashboard", status_code=status.HTTP_200_OK, tags=["Dashboard"])
 def obter_dashboard():
-    """Retorna os indicadores consolidados para o Dashboard em tempo real."""
-    internacoes_ativas = [
-        i for i in banco_internacoes.values()
-        if i["status_internacao"].lower() in ["internado", "em observação"]
-    ]
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM tb_tutor")
+        total_tutores = cursor.fetchone()[0]
 
-    return {
-        "total_tutores": len(banco_tutores),
-        "total_animais": len(banco_animais),
-        "total_agendamentos": len(banco_agendamentos),
-        "total_internacoes_ativas": len(internacoes_ativas),
-        "resumo_gravidade_internacoes": {
-            "Critica": len([i for i in internacoes_ativas if i["nivel_gravidade"] == "Critica"]),
-            "Alta": len([i for i in internacoes_ativas if i["nivel_gravidade"] == "Alta"]),
-            "Medio": len([i for i in internacoes_ativas if i["nivel_gravidade"] == "Medio"]),
-            "Baixa": len([i for i in internacoes_ativas if i["nivel_gravidade"] == "Baixa"])
-        },
-        "agendamentos_recentes": list(banco_agendamentos.values())[-5:],
-        "internacoes_ativas": internacoes_ativas
-    }
+        cursor.execute("SELECT COUNT(*) FROM tb_animal")
+        total_animais = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM tb_agendamento")
+        total_agendamentos = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM tb_internacao WHERE LOWER(status_internacao) = 'internado'")
+        total_internacoes_ativas = cursor.fetchone()[0]
+
+        return {
+            "total_tutores": total_tutores,
+            "total_animais": total_animais,
+            "total_agendamentos": total_agendamentos,
+            "total_internacoes_ativas": total_internacoes_ativas
+        }
+    finally:
+        cursor.close()
+        conexao.close()
