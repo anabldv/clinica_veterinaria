@@ -404,24 +404,43 @@
         </aside>
         <main class="main-content">
             <header class="top-header"><h1>Prontuários</h1></header>
-            
-            <section class="prontuarios-layout">
-                <div class="lista-animais-lateral">
-                    <h3>Pacientes</h3>
-                    <ul class="ul-animais">
-                        <li class="li-animal ativo">Animal 1</li>
-                        <li class="li-animal">Animal 2</li>
-                        <li class="li-animal">Animal 3</li>
-                        <li class="li-animal">Animal 4</li>
-                        <li class="li-animal">Animal 5</li>
-                        <li class="li-animal">Animal 6</li>
-                    </ul>
-                </div>
 
+               <!-- Coluna Direita: Informações do Prontuário -->
                 <div class="info-prontuario">
-                    <h3>Ficha Médica</h3>
-                    <div class="info-card-vazio">
-                        <p>Nenhuma informação clínica registada no momento.</p>
+                    
+                    <!-- Cabeçalho com o nome do animal e botão de adicionar -->
+                    <div class="prontuario-header-acoes">
+
+                        <button id="btn-novo-prontuario" class="btn-adicionar-plantao">
+                            <span>+</span> Novo Prontuário
+                        </button>
+                    </div>
+
+                    <!-- Formulário Oculto para Adicionar Prontuário -->
+                    <div id="form-novo-prontuario" class="bloco-notas-container" style="display: none; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">Adicionar Registro Clínico</h3>
+                        <div class="form-linha">
+                            <label>Data:</label>
+                            <input type="date" id="input-data-prontuario" class="input-linha">
+                        </div>
+                        <div class="form-linha-texto">
+                            <label>Diagnóstico / Prescrição:</label>
+                            <textarea id="input-info-prontuario" class="textarea-plantao" rows="4" placeholder="Digite os sintomas, diagnóstico e tratamento aplicados..."></textarea>
+                        </div>
+                        <div class="bloco-notas-acoes">
+                            <button id="btn-cancelar-prontuario" class="btn-cancelar">Cancelar</button>
+                            <button id="btn-salvar-prontuario" class="btn-salvar">Salvar Registro</button>
+                        </div>
+                    </div>
+
+                    <!-- Lista onde os prontuários vão aparecer -->
+                    <div class="lista-registros-prontuario" id="lista-registros-prontuario">
+                        <!-- Cartão de aviso vazio -->
+                        <div class="card-plantao vazio" id="card-prontuario-vazio">
+                            <div class="notas-plantao">Nenhum histórico clínico registado para este paciente. Clique em "Novo Prontuário" para adicionar.</div>
+                        </div>
+                    </div>
+                </div>
                     </div>
                 </div>
             </section>

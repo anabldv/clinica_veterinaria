@@ -567,54 +567,16 @@ input::placeholder {
 .status-pilula.vermelha { background-color: #EAA3A3; }
 .status-pilula.roxa { background-color: #C19DE5; }
 
-
-.btn-prontuarios-container {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-}
-
-.btn-prontuarios {
-    background-color: #E2E1E1;
-    border: none;
-    border-radius: 50px;
-    padding: 15px 25px 15px 40px;
-    font-size: 36px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: #000;
-}
-
-.btn-prontuarios:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-.icone-seta-dir {
-    background-color: #000;
-    color: #fff;
-    border-radius: 50%;
-    width: 45px;
-    height: 45px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
-    padding-left: 5px;
-}
-
-
+/* ================= TELA DE PRONTUÁRIOS ================= */
 .prontuarios-layout {
     padding: 40px 60px;
     display: flex;
+    justify-content: center; /* NOVO: Centraliza as duas colunas no meio da tela */
     gap: 40px;
     height: calc(100vh - 85px);
 }
 
-
+/* Coluna da lista de animais (Esquerda) */
 .lista-animais-lateral {
     width: 320px;
     background-color: #E2E1E1;
@@ -624,10 +586,12 @@ input::placeholder {
     flex-direction: column;
 }
 
-.lista-animais-lateral h3, .info-prontuario h3 {
-    font-size: 32px;
-    margin-bottom: 25px;
-    font-weight: normal;
+/* Coluna do cartão de informações (Direita) */
+.info-prontuario {
+    flex-grow: 1;
+    max-width: 900px; /* NOVO: Limita a largura para que não estique até à borda direita */
+    display: flex;
+    flex-direction: column;
 }
 
 .ul-animais {
@@ -864,4 +828,34 @@ input::placeholder {
 .btn-novo-agendamento:hover {
     background-color: #3b7a7e;
     transform: translateY(-3px);
+}
+
+/* ================= BOTÃO DE EXCLUIR REGISTRO ================= */
+.card-plantao {
+    position: relative; /* Necessário para posicionar o botão de excluir no canto */
+}
+
+.btn-excluir-registro {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    background-color: #ffdddd;
+    color: #D93B3B;
+    border: none;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-excluir-registro:hover {
+    background-color: #ffcccc;
+    transform: scale(1.1);
 }
