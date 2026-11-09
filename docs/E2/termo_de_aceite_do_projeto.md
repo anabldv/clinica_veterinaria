@@ -29,7 +29,7 @@
 | Frontend | HTML, CSS, Javascript |
 | Backend | Python (Fast API) |
 | Banco de dados | Oracle |
-| Deploy | Render (backend + banco) / Vercel (frontend) |
+| Deploy | Firebase |
 
 ## 4. Papéis iniciais da equipe (Sprint 1)
 | Integrante | Papel |
