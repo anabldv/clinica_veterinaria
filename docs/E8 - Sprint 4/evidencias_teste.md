@@ -20,6 +20,9 @@
 
 ### 2.1. Execução Local dos Testes Automatizados (VS Code)
 
+<img width="780" height="311" alt="image" src="https://github.com/user-attachments/assets/0283d483-7345-4307-9e0b-a68152ff5f56" />
+
+
 ### 2.2. Integração Contínua (GitHub Actions — Pull Request)
 
 ### 2.3. Log Detalhado da Execução no Servidor de CI
