@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+
 sys.path.insert(0, str(Path(_file_).resolve().parent.parent))
 
 from app.main import app, banco_tutores, banco_animais, banco_agendamentos, banco_vacinas_aplicadas
