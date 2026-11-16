@@ -20,7 +20,7 @@
 ## 2. Incremento funcional demonstrável
 O sistema conta com o monitoramento automático de inatividade de tutores para campanhas de check-up preventivo anual, o gerenciamento de observações complementares e a automação de disparos de lembretes de consultas. A interface frontend consome integralmente as rotas do backend, oferecendo uma experiência unificada para os perfis de `Recepcao` e `Veterinario`.
 
-* **Vídeo de demonstração:**  
+* **Vídeo de demonstração: https://drive.google.com/file/d/1B4DTLur7EXkb28F3tzgDzmpPybQ8Kbqy/view?usp=sharing**  
 
 **Passo a passo para reproduzir localmente:**
 1. Acessar a pasta do backend: `cd backend`
