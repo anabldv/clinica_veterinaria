@@ -25,6 +25,9 @@
 
 ### 2.2. Integração Contínua (GitHub Actions — Pull Request)
 
+<img width="1497" height="806" alt="image" src="https://github.com/user-attachments/assets/1971a586-adcb-4a20-b409-caf3d3e8cffb" />
+
+
 ### 2.3. Log Detalhado da Execução no Servidor de CI
 
 27 testes executados, 100% passando (6 da Sprint 1, 8 da Sprint 2, 8 da Sprint 3 e 5 novos da Sprint 4), cobrindo regras de negócio, restrições relacionais e rotinas de notificação no Pytest, validadas localmente e no pipeline de CI (GitHub Actions).
