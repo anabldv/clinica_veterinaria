@@ -1,5 +1,10 @@
+import sys
+from pathlib import Path
 from datetime import datetime
 from fastapi.testclient import TestClient
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from app.main import (
     app,
     banco_usuarios,
@@ -23,7 +28,6 @@ def test_ct27_consistencia_imediata_dados():
     """História 10: Cadastro de tutor, animal vinculado e agendamento imediato sem atraso."""
     limpar_bancos()
 
-    # 1. Cadastra Tutor
     res_tutor = client.post("/tutores", json={
         "nome": "Mariana Costa",
         "cpf": "12345678901",
@@ -34,7 +38,6 @@ def test_ct27_consistencia_imediata_dados():
     assert res_tutor.status_code == 201
     id_tutor = res_tutor.json()["tutor"]["id_tutor"]
 
-    # 2. Cadastra Animal imediatamente usando o ID recém-gerado
     res_animal = client.post("/animais", json={
         "id_tutor": id_tutor,
         "nome": "Thor",
@@ -46,7 +49,6 @@ def test_ct27_consistencia_imediata_dados():
     assert res_animal.status_code == 201
     id_animal = res_animal.json()["animal"]["id_animal"]
 
-    # 3. Agenda consulta imediatamente com os IDs criados
     res_agenda = client.post("/agendamentos", json={
         "id_animal": id_animal,
         "id_tutor": id_tutor,
@@ -58,7 +60,7 @@ def test_ct27_consistencia_imediata_dados():
 
 
 def test_ct28_integridade_referencial_tutor_inexistente():
-    """História 10: Bloqueio ao cadastrar animal para tutor inexistente (espelho FK Oracle)."""
+    """História 10: Bloqueio ao cadastrar animal para tutor inexistente."""
     limpar_bancos()
 
     res = client.post("/animais", json={
