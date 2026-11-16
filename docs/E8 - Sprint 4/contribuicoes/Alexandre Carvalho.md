@@ -5,8 +5,8 @@
 ## 1. O que fiz
 | Item | PR/commit | Status |
 |---|---|---|
-| Desenvolvimento e validação dos casos de teste CT27 a CT30 (`test_sprint4.py`) | PR da Sprint 4 | Concluído |
-| Validação de regressão da suíte completa de testes da API (30 testes no Pytest) | Pipeline CI | Concluído |
+| Desenvolvimento e validação dos casos de teste CT27 a CT30 (`test_sprint4.py`) |  | Concluído |
+| Validação de regressão da suíte completa de testes da API (30 testes no Pytest) |  | Concluído |
 | Acompanhamento, verificação e aprovação do workflow de integração contínua (GitHub Actions) | PR #32 | Concluído |
 
 ## 2. Rituais que participei
