@@ -27,4 +27,4 @@
 
 ### 2.3. Log Detalhado da Execução no Servidor de CI
 
-30 testes executados, 100% passando (6 da Sprint 1, 8 da Sprint 2, 8 da Sprint 3 e 8 novos da Sprint 4), cobrindo regras de negócio, restrições relacionais e rotinas de notificação no Pytest, validadas localmente e no pipeline de CI (GitHub Actions).
+27 testes executados, 100% passando (6 da Sprint 1, 8 da Sprint 2, 8 da Sprint 3 e 5 novos da Sprint 4), cobrindo regras de negócio, restrições relacionais e rotinas de notificação no Pytest, validadas localmente e no pipeline de CI (GitHub Actions).
