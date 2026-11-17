@@ -2,10 +2,6 @@
 
 ## 1. Diagrama
 
-# DER — Pet & Gatô
-
-## 1. Diagrama
-
 ```mermaid
 erDiagram
     USUARIO ||--o| VETERINARIO : especializa
