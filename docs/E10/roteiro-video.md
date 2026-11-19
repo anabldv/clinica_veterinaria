@@ -1,63 +1,62 @@
-# Roteiro de Vídeo — Pet & Gatô
+# Roteiro do Vídeo — Pet & Gatô
 
-**Equipe:** Ana Baldivia (RA 2840482423002) — Alexandre Carvalho (RA 2840482423027) — Julia Roberta (RA 2840482423020) — Lídia Rocha (RA 2840482423022)  
-**Link do vídeo (não listado):** `[link a inserir]`  
-**Duração final:** 10:15 (estimada entre 8 e 12 min)
+**Equipe:** Ana Baldivia (RA 2840482423002), Alexandre Carvalho (RA 2840482423027), Julia Roberta (RA 2840482423020), Lídia Rocha (RA 2840482423022)
+**Link do vídeo (não listado):** `[link a inserir após upload]`
+**Duração final:** 10:30
 
 ## 1. Planejamento dos blocos
 | Bloco | Tempo | Quem fala | O que aparece na tela |
 |---|---|---|---|
-| 1 · Abertura | 0:00–0:25 | Lídia | Capa institucional com o nome do projeto e os RAs da equipe |
-| 2 · Problema e cliente | 0:25–1:20 | Ana | Contextualização do desafio proposto pela disciplina (gestão hospitalar veterinária) e os gargalos de controle em clínicas tradicionais |
-| 3 · Demonstração (deploy público) | 1:20–4:30 | Alexandre narra, Julia navega | Tela do navegador com a URL pública do deploy (`https://pet-e-gato.web.app/`), demonstrando login por perfis, agendamentos, vacinação e dashboard |
-| 4 · Engenharia: rastreabilidade | 4:30–6:20 | Alexandre | Exibição do backlog, modelagem de dados, Pull Request no GitHub e pipeline de CI executando o Pytest |
-| 5 · Processo ágil | 6:20–8:40 | Lídia e Julia | Gráficos de planejado × entregue das sprints 1 a 3, atas de retrospectiva e Kanban |
-| 6 · Depoimentos individuais | 8:40–9:55 | Todos | Câmera aberta de cada integrante relatando os aprendizados |
-| Fechamento | 9:55–10:15 | Ana | Tela final com link do deploy, repositório GitHub e stack tecnológica |
+| 1 · Abertura | 0:00–0:30 | Lídia | Capa do projeto com logo, título (Pet & Gatô) e nomes/RAs da equipe |
+| 2 · Problema e cliente | 0:30–1:30 | Ana | Contexto do tema sugerido (clínica veterinária), dores do controle manual e perfil dos usuários (Recepção e Veterinário) |
+| 3 · Demonstração (deploy público) | 1:30–5:10 | Alexandre | Navegação na URL pública (`https://pet-e-gato.web.app/`): perfis, cadastro tutor/pet, agendamento + vacina (21 dias), internação + plantão, dashboard e alertas da Sprint 4 |
+| 4 · Engenharia: rastreabilidade | 5:10–7:00 | Alexandre | US-04/US-09 no backlog → DER/Modelagem → PR com revisão de código → Suíte Pytest (30 testes) rodando verde no GitHub Actions |
+| 5 · Processo ágil | 7:00–9:10 | Lídia e Julia | Evolução planejado × entregue (Sprints 1 a 4), atas de retrospectiva aplicadas, board Kanban e rodízio de papéis |
+| 6 · Depoimentos individuais | 9:10–10:10 | Todos | Cada integrante (15s cada) destacando o principal aprendizado prático |
+| Fechamento | 10:10–10:30 | Ana | Tela final com URL do deploy, repositório no GitHub (`anabldv/clinica_veterinaria`) e stack tecnológica |
 
 ## 2. Requisitos mínimos na demonstração (bloco 3)
 | Requisito mínimo | Momento do vídeo | Como aparece |
 |---|---|---|
-| Autenticação com 2+ perfis | 1:35 | Demonstração de acesso alternando entre os papéis de Recepção e Veterinário (via cabeçalho `X-Perfil`), com bloqueio de rotas sensíveis |
-| Regra de negócio não trivial (caso normal + borda) | 2:20 | Tentativa de agendamento de vacina com intervalo inferior a 21 dias da última dose (retornando erro HTTP 400) e conflito de horário no mesmo veterinário (HTTP 409) |
-| Consulta agregada (relatório/dashboard) | 3:15 | Acesso à rota de Dashboard (`GET /dashboard`) exibindo a contagem consolidada de tutores, animais, agendamentos e internações ativas estratificadas por gravidade |
-| Validações em interface e banco | 2:05 | Validações Pydantic no FastAPI impedindo datas retroativas e campos obrigatórios ausentes |
-| 6+ entidades com N:N | 4:45 | Exibição do modelo relacional conectando tutores, animais, agendamentos, vacinas, internações e evoluções de plantão |
-| Deploy público (URL visível) | Todo o bloco 3 | URL `https://pet-e-gato.web.app/` ativa na barra de endereços do navegador |
-| Repositório com README | 10:05 | Repositório público `anabldv/clinica_veterinaria` com documentação e instruções de execução |
+| Autenticação com 2+ perfis | 1:40 | Alternância entre perfis `Recepcao` e `Veterinario` (`X-Perfil`), exibindo o bloqueio (HTTP 403) quando a recepção tenta editar um prontuário |
+| Regra de negócio não trivial (caso normal + borda) | 2:25 | Tentativa de agendar vacina com intervalo menor que 21 dias (HTTP 400), conflito de horário no mesmo veterinário (HTTP 409) e bloqueio de segunda evolução no mesmo turno de plantão |
+| Consulta agregada (relatório/dashboard) | 3:55 | Tela de Dashboard (`GET /dashboard`) exibindo indicadores consolidados de tutores, animais, agendamentos e internações ativas estratificadas por gravidade |
+| Validações em interface e banco | 2:05 | Validação no formulário SPA e via Pydantic impedindo datas retroativas, CPFs duplicados e campos obrigatórios vazios (HTTP 400 / 422) |
+| 6+ entidades com N:N | 5:35 | Exibição no Bloco 4 da modelagem conectando Tutores, Animais, Usuários, Agendamentos, Vacinas, Internações e Evoluções de Plantão |
+| Deploy público (URL visível) | Todo o bloco 3 | Barra de endereços do navegador exibindo `https://pet-e-gato.web.app/` durante toda a demonstração |
+| Repositório com README | 10:15 | Página inicial do repositório `github.com/anabldv/clinica_veterinaria` com README estruturado |
 
 ## 3. História rastreada (bloco 4)
-**História escolhida:** US-04 / Regras de Prontuário e Restrição de Acesso por Perfil (Sprint 3)
+**História escolhida:** US-04 / US-09 — Atualização de prontuários com controle de vacinação e restrição de acesso por perfil (Veterinário vs. Recepção)
 
 | Etapa | Artefato mostrado | Link |
 |---|---|---|
-| Requisito | Backlog com critérios de aceite para perfis de Recepção versus Veterinário | `docs/backlog.md` |
-| Modelo | Modelagem relacional das tabelas de Prontuário, Evolução e Perfis | `docs/der.png` |
-| Código | Pull Request #22 (revisão de rotas e headers de controle de acesso) | `github.com/anabldv/clinica_veterinaria` |
-| Teste | Suíte de testes automatizados (`test_sprint3.py`) com cenários de bloqueio de perfil no CI | `tests/test_sprint3.py` |
+| Requisito | Histórias #4 e #9 com critérios de aceite de intervalo vacinal (21 dias) e bloqueio de perfil | `docs/backlog.md` |
+| Modelo | Modelagem relacional das entidades Prontuário, Vacina, Animal e Usuário | `docs/der.png` |
+| Código | Pull Request da Sprint 3/4 com revisão de código sobre cabeçalho `X-Perfil` e regras de turno | `github.com/anabldv/clinica_veterinaria/pulls` |
+| Teste | Casos CT18, CT24, CT25 e execução da bateria final de 30 testes aprovados no GitHub Actions | `docs/E8 - Sprint 4/evidencias_teste.md` |
 
-**Decisão técnica justificada:** Optamos por realizar a validação de perfis através de interceptadores e injeção de dependências no FastAPI associados a cabeçalhos customizados (`X-Perfil`), porque garante o desacoplamento inicial da camada de autenticação pesada enquanto consolida as regras restritivas do MVP clínico.
+**Decisão técnica justificada:** Implementamos validadores customizados no Pydantic (`@field_validator`) e injeção de dependências no FastAPI para validar datas e cabeçalhos (`X-Perfil`) antes da camada de persistência, pois garantiria integridade clínica imediata e respostas HTTP semânticas (`400`, `403`, `409`) tanto para a interface SPA quanto para integrações externas.
 
 ## 4. Evidências de processo ágil (bloco 5)
 | Evidência | Sprint | Artefato mostrado na tela |
 |---|---|---|
-| Planejado × entregue por sprint | S1, S2, S3 (S4 em andamento) | S1: 100% entregue · S2: 100% entregue (14 testes) · S3: 100% entregue (22 testes) |
-| Retrospectiva com ação aplicada | S2 → S3 | Ata da Sprint 2 com foco em mitigar conflitos de merge e padronizar branches aplicadas na Sprint 3 |
-| Mudança de escopo negociada | S1 | Replanejamento da História #4 de controle de acesso por perfil da Sprint 1 para a Sprint 3 |
-| PR com revisão relevante | S3 | Pull Request de integração das métricas do Dashboard validado cruzadamente pela equipe |
-| Rodízio de papéis | S1–S3 | Matriz de papéis rotativos (Ana como PO, Alexandre em QA, Julia em Dados, Lídia como Scrum Master) |
+| Planejado × entregue por sprint | 1–4 | S1: 100% (10 testes) · S2: 100% (14 testes) · S3: 100% (22 testes) · S4: 100% entregue (#16, #17, #18 e SPA integrados, 30 testes) |
+| Retrospectiva com ação aplicada | 2 → 3 → 4 | Ata da Sprint 2 (conflitos de merge) gerou política de branches limpas na Sprint 3; Ata da Sprint 3 gerou conexão completa da SPA e 30 testes E2E na Sprint 4 |
+| Mudança de escopo negociada | 1 → 3 | Replanejamento da História #4 (controle de perfil) da Sprint 1 para a Sprint 3, negociado com a PO para priorizar o cadastro base primeiro |
+| PR com revisão relevante | 3–4 | Revisão cruzada entre QA, Dados e Backend nos PRs de Dashboard e integração SPA garantindo contratos OpenAPI/Swagger |
+| Rodízio de papéis | 1–4 | Tabela de responsabilidades nas entregas (Ana: PO/Frontend, Alexandre: Qualidade/CI, Julia: Dados/Backend, Lídia: Scrum Master/Backend/Docs) |
 
 ## 5. Depoimentos (bloco 6)
 | Integrante | Papéis exercidos | Conceito aprendido na prática | Evidência citada | O que faria diferente |
 |---|---|---|---|---|
-| Ana Baldivia | Product Owner / Dev Backend | Clareza na definição de critérios de aceite para evitar retrabalho no código | Replanejamento da História #4 entre a Sprint 1 e 3 | Detalhar os contratos de API antes de codificar |
-| Alexandre Carvalho | Responsável por Qualidade (QA) | Importância da automação de testes defensivos para mitigar quebras no pipeline de CI | Suíte `test_sprint3.py` cobrindo cenários de borda | Automatizar testes de regressão desde o primeiro dia |
-| Julia Roberta | Responsável por Dados / Backend | Rigor na integridade relacional de chaves e restrições de datas em Python/Pydantic | Modelagem das regras de vacinação de 21 dias e plantões | Mapear o banco relacional completo mais cedo no projeto |
-| Lídia Rocha | Scrum Master / Docs / Backend | O impacto do acompanhamento diário do board Kanban e versionamento limpo | Resolução de conflitos de merge entre branches na Sprint 2 | Estabelecer um fluxo de PRs menores e mais frequentes |
+| Ana Baldivia | PO (S1–S4), Frontend SPA | Alinhar critérios de aceite claros evita retrabalho na integração entre telas e API | Replanejamento da História #4 e integração final da SPA | Definir todos os contratos OpenAPI antes de iniciar a codificação |
+| Alexandre Carvalho | Qualidade / QA (S1–S4) | Testes defensivos e automação no CI impedem regressões a cada novo Pull Request | Suíte final com 30 testes aprovados no GitHub Actions | Configurar a esteira de testes automatizados desde o primeiro commit |
+| Julia Roberta | Dados (S1–S4), Backend | Modelagem relacional rigorosa e validações de data protegem regras clínicas críticas | Regra de vacinação de 21 dias e bloqueio de plantão duplicado | Mapear todas as restrições e chaves estrangeiras logo na E3 |
+| Lídia Rocha | Scrum Master (S1–S4), Backend | Gestão ativa do Kanban e política de branches reduzem conflitos de merge | Atas de retrospectiva da Sprint 2 para a Sprint 3 | Padronizar ambientes virtuais e variáveis `.env` no primeiro dia |
 
 ## 6. Checagem antes do envio
 - [x] Sem senhas, tokens, `.env` ou dados pessoais reais na tela
-- [x] Autorização de imagem de quem aparece e da coordenação/proposta acadêmica
+- [x] Autorização de imagem de quem aparece e do cliente (tema acadêmico sugerido pelo professor)
 - [x] Link testado em janela anônima (`https://pet-e-gato.web.app/`)
 - [x] Ficha da mostra em `docs/mostra-virtual.md` + capa + 3 capturas enviadas
-
