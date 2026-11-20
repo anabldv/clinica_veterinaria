@@ -205,6 +205,94 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
+    async function carregarRegistros(tipo) {
+        const lista = document.getElementById("lista-registros-dashboard");
+        if (!lista) return;
+
+        const rotas = {
+            tutores: "/tutores",
+            animais: "/animais",
+            internacoes: "/internacoes",
+            agendamentos: "/agendamentos"
+        };
+
+        const titulos = {
+            tutores: "Tutores cadastrados",
+            animais: "Animais cadastrados",
+            internacoes: "Internações registradas",
+            agendamentos: "Agendamentos realizados"
+        };
+
+        lista.innerHTML = "<p>Carregando registros...</p>";
+
+        try {
+            const resp = await fetch(`${API_URL}${rotas[tipo]}`);
+            if (!resp.ok) throw new Error("Erro ao buscar registros.");
+
+            const registros = await resp.json();
+
+            const colunas = registros.length
+                ? [...new Set(registros.flatMap(r => Object.keys(r)))]
+                : ["Nenhum registro cadastrado"];
+
+            const escapar = valor => String(valor ?? "-")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+
+            lista.style.display = "flex";
+
+            lista.innerHTML = `
+                <button id="btn-voltar-registros" class="btn-voltar-registros">
+                    ← Voltar
+                </button>
+
+                <h2>${titulos[tipo]}</h2>
+
+                ${!registros.length ? "<p>Nenhum registro encontrado.</p>" : `
+                    <table class="tabela-registros">
+                        <thead>
+                            <tr>
+                                ${colunas.map(c => `<th>${escapar(c.replace(/_/g, " "))}</th>`).join("")}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${registros.map(r => `
+                                <tr>
+                                    ${colunas.map(c => `<td>${escapar(r[c])}</td>`).join("")}
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                `}
+            `;
+
+            document.querySelectorAll(".cards-grid").forEach(grid => {
+                grid.style.display = "none";
+            });
+
+            document.getElementById("btn-voltar-registros").addEventListener("click", () => {
+                lista.style.display = "none";
+
+                document.querySelectorAll(".cards-grid").forEach(grid => {
+                    grid.style.display = "";
+                });
+            });
+            
+        } catch (err) {
+            console.error("Erro ao carregar registros:", err);
+            lista.innerHTML = "<p>Não foi possível carregar os registros.</p>";
+        }
+    }
+
+    document.querySelectorAll(".cards-grid .card").forEach(card => {
+        card.addEventListener("click", function() {
+            carregarRegistros(this.dataset.tipo);
+        });
+    });
+
     const formTutor = document.getElementById("form-cadastro-tutor");
     if (formTutor) {
         formTutor.addEventListener("submit", async function(e) {
