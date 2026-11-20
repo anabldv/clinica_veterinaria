@@ -89,7 +89,7 @@ input::placeholder {
 .dashboard-container {
     width: 100%;
     height: 100%;
-    display: none; /
+    display: none; 
     background-color: #FFFFFF;
 }
 
@@ -858,4 +858,40 @@ input::placeholder {
 .btn-excluir-registro:hover {
     background-color: #ffcccc;
     transform: scale(1.1);
+}
+
+.modal-centralizado {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    width: 90%;
+    max-width: 550px;
+    border: 2px solid #4C979D;
+}
+
+.bloco-com-texto {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    font-size: 22px;
+    text-align: center;
+    border-bottom: 1px solid #ccc;
+}
+
+.bloco-data-hora {
+    font-size: 16px;
+    color: #333;
+    margin-top: 4px;
+}
+
+select.input-linha {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #000;
+    font-size: 22px;
+    outline: none;
 }
