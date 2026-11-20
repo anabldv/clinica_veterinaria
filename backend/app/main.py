@@ -603,7 +603,12 @@ def criar_agendamento(agendamento: AgendamentoCadastro):
 @app.get("/agendamentos", status_code=status.HTTP_200_OK, tags=["Agendamentos"])
 def listar_agendamentos(veterinario: Optional[str] = None, status_consulta: Optional[str] = None):
     if usando_modo_memoria():
-        res = list(banco_agendamentos.values())
+        res = []
+        for ag in banco_agendamentos.values():
+            item = dict(ag)
+            animal = banco_animais.get(ag["id_animal"], {})
+            item["nome_animal"] = animal.get("nome", f"Animal #{ag['id_animal']}")
+            res.append(item)
         if veterinario:
             res = [ag for ag in res if ag["veterinario"].strip().lower() == veterinario.strip().lower()]
         if status_consulta:
@@ -614,9 +619,10 @@ def listar_agendamentos(veterinario: Optional[str] = None, status_consulta: Opti
     cursor = conexao.cursor()
     try:
         sql = """
-            SELECT a.hora_agendamento, a.id_animal, a.crmv, a.matricula, a.status_agendamento,
+            SELECT a.hora_agendamento, a.id_animal, an.nome_animal, a.crmv, a.matricula, a.status_agendamento,
                    u.nome_usuario AS nome_veterinario
             FROM tb_agendamento a
+            JOIN tb_animal an ON a.id_animal = an.id_animal
             JOIN tb_veterinario v ON a.crmv = v.crmv
             JOIN tb_usuario u ON v.id_usuario = u.id_usuario
             WHERE 1=1
@@ -639,7 +645,6 @@ def listar_agendamentos(veterinario: Optional[str] = None, status_consulta: Opti
     finally:
         cursor.close()
         conexao.close()
-
 
 @app.patch("/agendamentos/{id_agendamento}/cancelar", status_code=status.HTTP_200_OK, tags=["Agendamentos"])
 def cancelar_agendamento(id_agendamento: int):
@@ -911,7 +916,15 @@ def listar_internacoes(nivel_gravidade: Optional[str] = None, status_internacao:
     conexao = obter_conexao()
     cursor = conexao.cursor()
     try:
-        cursor.execute("SELECT id_internacao, id_animal, crmv, data_internacao, data_alta, nivel_gravidade, status_internacao, evolucao_internacao FROM tb_internacao")
+        sql = """
+            SELECT i.id_internacao, i.id_animal, a.nome_animal AS animal_nome,
+                   t.nome_tutor AS tutor_nome, i.crmv, i.data_internacao,
+                   i.data_alta, i.nivel_gravidade, i.status_internacao, i.evolucao_internacao
+            FROM tb_internacao i
+            JOIN tb_animal a ON i.id_animal = a.id_animal
+            JOIN tb_tutor t ON a.id_tutor = t.id_tutor
+        """
+        cursor.execute(sql)
         return [dict(zip([c[0].lower() for c in cursor.description], r)) for r in cursor.fetchall()]
     finally:
         cursor.close()
