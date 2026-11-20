@@ -1,289 +1,669 @@
 document.addEventListener("DOMContentLoaded", function() {
-    
-    // 1. VARIÁVEIS PRINCIPAIS
-    const loginForm = document.getElementById('loginForm');
-    let perfilLogado = ''; 
+    const API_URL = "http://127.0.0.1:8000";
+
+    // 1. ESTADO DA SESSÃO
+    let usuarioLogado = JSON.parse(localStorage.getItem("petgato_usuario")) || null;
+    let perfilLogado = usuarioLogado ? normalizarPerfil(usuarioLogado.perfil) : "";
+    let animalSelecionadoProntuario = null;
+
+    function normalizarPerfil(perfil) {
+        if (!perfil) return "";
+        const p = perfil.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return p.includes("vet") ? "veterinario" : "recepcionista";
+    }
 
     // Referência de todas as telas do sistema
     const telas = {
-        login: document.getElementById('tela-login'),
+        login: document.getElementById("tela-login"),
         // Telas Recepcionista
-        dashboardRec: document.getElementById('tela-dashboard'),
-        cadastroRec: document.getElementById('tela-cadastro'),
-        agendamentosRec: document.getElementById('tela-agendamentos'),
-        configuracoesRec: document.getElementById('tela-configuracoes'),
+        dashboardRec: document.getElementById("tela-dashboard"),
+        cadastroRec: document.getElementById("tela-cadastro"),
+        agendamentosRec: document.getElementById("tela-agendamentos"),
+        configuracoesRec: document.getElementById("tela-configuracoes"),
         // Telas Veterinário
-        dashboardVet: document.getElementById('tela-dashboard-vet'),
-        agendamentosVet: document.getElementById('tela-agendamentos-vet'),
-        configuracoesVet: document.getElementById('tela-configuracoes-vet'),
-        internacoesVet: document.getElementById('tela-internacoes-vet'),
-        prontuariosVet: document.getElementById('tela-prontuarios-vet'),
-        plantaoVet: document.getElementById('tela-plantao-vet')
+        dashboardVet: document.getElementById("tela-dashboard-vet"),
+        agendamentosVet: document.getElementById("tela-agendamentos-vet"),
+        configuracoesVet: document.getElementById("tela-configuracoes-vet"),
+        internacoesVet: document.getElementById("tela-internacoes-vet"),
+        prontuariosVet: document.getElementById("tela-prontuarios-vet"),
+        plantaoVet: document.getElementById("tela-plantao-vet")
     };
 
-    // Função central para trocar as telas
-    function mostrarTela(telaNome) {
-        Object.values(telas).forEach(tela => {
-            if (tela) tela.style.display = 'none';
+    function atualizarNomeSidebar() {
+        const spans = document.querySelectorAll(".nome-usuario-logado");
+        spans.forEach(span => {
+            if (usuarioLogado && usuarioLogado.nome) {
+                span.innerText = usuarioLogado.nome;
+            } else {
+                span.innerText = perfilLogado === "veterinario" ? "Veterinário" : "Recepcionista";
+            }
         });
-        if (telas[telaNome]) telas[telaNome].style.display = 'flex';
     }
 
-    // ================= 2. SISTEMA DE LOGIN =================
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(event) {
-            event.preventDefault(); // Impede a página de recarregar
-            
-            const loginValue = document.getElementById('login').value.toLowerCase();
-            const senhaValue = document.getElementById('senha').value;
+    // Função central para trocar as telas e disparar carregamento da API
+    function mostrarTela(telaNome) {
+        Object.values(telas).forEach(tela => {
+            if (tela) tela.style.display = "none";
+        });
+        if (telas[telaNome]) {
+            telas[telaNome].style.display = "flex";
+        }
+        atualizarNomeSidebar();
 
-            if (loginValue === 'recepcionista' && senhaValue === '123') {
-                perfilLogado = 'recepcionista';
-                mostrarTela('dashboardRec');
-            } else if (loginValue === 'veterinario' && senhaValue === '123') {
-                perfilLogado = 'veterinario';
-                mostrarTela('dashboardVet');
-            } else {
-                alert('Login ou senha incorretos.');
+        // Carregamento automático de dados ao abrir cada tela
+        if (telaNome === "dashboardRec" || telaNome === "dashboardVet") {
+            carregarDashboard();
+        } else if (telaNome === "cadastroRec") {
+            carregarSelectTutores();
+        } else if (telaNome === "agendamentosRec" || telaNome === "agendamentosVet") {
+            carregarAgendamentos();
+            carregarSelectAnimais("select-agend-animal");
+        } else if (telaNome === "internacoesVet") {
+            carregarInternacoes();
+        } else if (telaNome === "prontuariosVet") {
+            carregarListaPacientesProntuario();
+        } else if (telaNome === "plantaoVet") {
+            carregarSelectAnimais("select-plantao-animal-filtro");
+            carregarSelectAnimais("select-plantao-animal");
+        }
+    }
+
+    // Helper para extrair mensagens de erro do FastAPI
+    function extrairMensagemErro(erroData, fallback) {
+        if (!erroData) return fallback;
+        if (typeof erroData.detail === "string") return erroData.detail;
+        if (erroData.detail && erroData.detail.mensagem) return erroData.detail.mensagem;
+        return fallback;
+    }
+
+    // Se já houver sessão salva, restaura a tela inicial
+    if (usuarioLogado) {
+        mostrarTela(perfilLogado === "veterinario" ? "dashboardVet" : "dashboardRec");
+    }
+
+    // ================= 2. SISTEMA DE LOGIN (POST /login) =================
+    const loginForm = document.getElementById("loginForm");
+    if (loginForm) {
+        loginForm.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const email = document.getElementById("login").value.trim();
+            const senha = document.getElementById("senha").value;
+
+            try {
+                const resposta = await fetch(`${API_URL}/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, senha })
+                });
+
+                const dados = await resposta.json();
+
+                if (!resposta.ok) {
+                    alert(extrairMensagemErro(dados, "E-mail ou senha incorretos."));
+                    return;
+                }
+
+                usuarioLogado = dados.usuario;
+                perfilLogado = normalizarPerfil(usuarioLogado.perfil);
+                localStorage.setItem("petgato_usuario", JSON.stringify(usuarioLogado));
+
+                mostrarTela(perfilLogado === "veterinario" ? "dashboardVet" : "dashboardRec");
+            } catch (erro) {
+                console.error("Erro no login:", erro);
+                alert("Não foi possível conectar ao servidor da API. Verifique se o FastAPI está rodando na porta 8000.");
             }
         });
     }
 
     // ================= 3. NAVEGAÇÃO DO MENU LATERAL =================
-    const menuItems = document.querySelectorAll('.menu-item');
+    const menuItems = document.querySelectorAll(".menu-item");
     menuItems.forEach(item => {
-        item.addEventListener('click', function(e) {
+        item.addEventListener("click", function(e) {
             e.preventDefault();
             const textoBotao = this.innerText.trim();
-            
-            if (textoBotao === 'Pagina inicial') {
-                mostrarTela(perfilLogado === 'veterinario' ? 'dashboardVet' : 'dashboardRec');
-            } else if (textoBotao === 'Cadastro') {
-                if (perfilLogado === 'recepcionista') mostrarTela('cadastroRec');
-            } else if (textoBotao === 'Agendamentos') {
-                mostrarTela(perfilLogado === 'veterinario' ? 'agendamentosVet' : 'agendamentosRec');
-            } else if (textoBotao === 'Configurações') {
-                mostrarTela(perfilLogado === 'veterinario' ? 'configuracoesVet' : 'configuracoesRec');
-            } else if (textoBotao === 'Internações') {
-                if (perfilLogado === 'veterinario') mostrarTela('internacoesVet');
-            } else if (textoBotao === 'Plantão') {
-                if (perfilLogado === 'veterinario') mostrarTela('plantaoVet');
+
+            if (textoBotao === "Pagina inicial") {
+                mostrarTela(perfilLogado === "veterinario" ? "dashboardVet" : "dashboardRec");
+            } else if (textoBotao === "Cadastro") {
+                if (perfilLogado === "recepcionista") mostrarTela("cadastroRec");
+            } else if (textoBotao === "Agendamentos") {
+                mostrarTela(perfilLogado === "veterinario" ? "agendamentosVet" : "agendamentosRec");
+            } else if (textoBotao === "Configurações") {
+                mostrarTela(perfilLogado === "veterinario" ? "configuracoesVet" : "configuracoesRec");
+            } else if (textoBotao === "Internações") {
+                if (perfilLogado === "veterinario") mostrarTela("internacoesVet");
+            } else if (textoBotao === "Plantão") {
+                if (perfilLogado === "veterinario") mostrarTela("plantaoVet");
             }
         });
     });
 
-    // Botão de Prontuários (dentro de Internações)
-    const btnProntuarios = document.querySelector('.btn-prontuarios');
+    const btnProntuarios = document.querySelector(".btn-prontuarios");
     if (btnProntuarios) {
-        btnProntuarios.addEventListener('click', function(e) {
+        btnProntuarios.addEventListener("click", function(e) {
             e.preventDefault();
-            if (perfilLogado === 'veterinario') mostrarTela('prontuariosVet');
+            if (perfilLogado === "veterinario") mostrarTela("prontuariosVet");
         });
     }
 
     // ================= 4. SAIR DA CONTA =================
     function sairDaConta(e) {
         e.preventDefault();
-        document.getElementById('login').value = '';
-        document.getElementById('senha').value = '';
-        perfilLogado = ''; 
-        mostrarTela('login');
+        localStorage.removeItem("petgato_usuario");
+        usuarioLogado = null;
+        perfilLogado = "";
+        document.getElementById("login").value = "";
+        document.getElementById("senha").value = "";
+        mostrarTela("login");
     }
 
-    const btnSairRec = document.getElementById('btn-sair-conta');
-    const btnSairVet = document.getElementById('btn-sair-conta-vet');
-    if (btnSairRec) btnSairRec.addEventListener('click', sairDaConta);
-    if (btnSairVet) btnSairVet.addEventListener('click', sairDaConta);
+    ["btn-sair-conta", "btn-sair-conta-vet", "btn-trocar-conta-rec", "btn-trocar-conta-vet"].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener("click", sairDaConta);
+    });
 
-    // ================= 5. NOVO AGENDAMENTO (RECEPCIONISTA) =================
-    const btnAbrirAgend = document.getElementById('btn-abrir-agendamento');
-    const modalAgend = document.getElementById('modal-agendamento');
-    const btnCancelarAgend = document.getElementById('btn-cancelar-agend');
-    const btnSalvarAgend = document.getElementById('btn-salvar-agend');
+    // ================= 5. DASHBOARD (GET /dashboard) =================
+    async function carregarDashboard() {
+        try {
+            const resp = await fetch(`${API_URL}/dashboard`);
+            if (!resp.ok) return;
+            const dados = await resp.json();
+
+            const sufixo = perfilLogado === "veterinario" ? "vet" : "rec";
+            const elTutores = document.getElementById(`dash-tutores-${sufixo}`);
+            const elAnimais = document.getElementById(`dash-animais-${sufixo}`);
+            const elInternacoes = document.getElementById(`dash-internacoes-${sufixo}`);
+            const elAgendamentos = document.getElementById(`dash-agendamentos-${sufixo}`);
+
+            if (elTutores) elTutores.innerText = dados.total_tutores ?? 0;
+            if (elAnimais) elAnimais.innerText = dados.total_animais ?? 0;
+            if (elInternacoes) elInternacoes.innerText = dados.total_internacoes_ativas ?? 0;
+            if (elAgendamentos) elAgendamentos.innerText = dados.total_agendamentos ?? 0;
+        } catch (err) {
+            console.error("Erro ao carregar dashboard:", err);
+        }
+    }
+
+    // ================= 6. CADASTROS (TUTOR E ANIMAL) =================
+    async function carregarSelectTutores() {
+        const select = document.getElementById("animal-id-tutor");
+        if (!select) return;
+        try {
+            const resp = await fetch(`${API_URL}/tutores`);
+            const tutores = await resp.json();
+            select.innerHTML = '<option value="">Selecione um tutor...</option>';
+            tutores.forEach(t => {
+                const nome = t.nome_tutor || t.nome;
+                const opt = document.createElement("option");
+                opt.value = t.id_tutor;
+                opt.innerText = `${t.id_tutor} - ${nome} (CPF: ${t.cpf_tutor || t.cpf})`;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error("Erro ao carregar tutores:", err);
+        }
+    }
+
+    const formTutor = document.getElementById("form-cadastro-tutor");
+    if (formTutor) {
+        formTutor.addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const payload = {
+                nome: document.getElementById("tutor-nome").value.trim(),
+                cpf: document.getElementById("tutor-cpf").value.trim(),
+                email: document.getElementById("tutor-email").value.trim(),
+                telefone: document.getElementById("tutor-telefone").value.trim(),
+                observacoes: document.getElementById("tutor-obs").value.trim() || null
+            };
+
+            try {
+                const resp = await fetch(`${API_URL}/tutores`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const dados = await resp.json();
+                if (!resp.ok) {
+                    alert(extrairMensagemErro(dados, "Erro ao cadastrar tutor."));
+                    return;
+                }
+                alert("Tutor cadastrado com sucesso!");
+                formTutor.reset();
+                carregarSelectTutores();
+            } catch (err) {
+                alert("Falha de comunicação ao cadastrar tutor.");
+            }
+        });
+    }
+
+    const formAnimal = document.getElementById("form-cadastro-animal");
+    if (formAnimal) {
+        formAnimal.addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const idTutor = parseInt(document.getElementById("animal-id-tutor").value, 10);
+            if (!idTutor) {
+                alert("Selecione um tutor válido.");
+                return;
+            }
+
+            const payload = {
+                id_tutor: idTutor,
+                nome: document.getElementById("animal-nome").value.trim(),
+                tipo_animal: document.getElementById("animal-tipo").value.trim(),
+                raca: document.getElementById("animal-raca").value.trim() || null,
+                sexo: document.getElementById("animal-sexo").value,
+                data_nascimento: document.getElementById("animal-nasc").value || null
+            };
+
+            try {
+                const resp = await fetch(`${API_URL}/animais`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const dados = await resp.json();
+                if (!resp.ok) {
+                    alert(extrairMensagemErro(dados, "Erro ao cadastrar animal."));
+                    return;
+                }
+                alert("Animal cadastrado com sucesso!");
+                formAnimal.reset();
+            } catch (err) {
+                alert("Falha de comunicação ao cadastrar animal.");
+            }
+        });
+    }
+
+    // Helper para popular selects de animais
+    async function carregarSelectAnimais(selectId) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        try {
+            const resp = await fetch(`${API_URL}/animais`);
+            const animais = await resp.json();
+            select.innerHTML = '<option value="">Selecione o animal...</option>';
+            animais.forEach(a => {
+                const nome = a.nome_animal || a.nome;
+                const tipo = a.tipo_animal || "";
+                const opt = document.createElement("option");
+                opt.value = a.id_animal;
+                opt.innerText = `${a.id_animal} - ${nome} (${tipo})`;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error("Erro ao listar animais:", err);
+        }
+    }
+
+    // ================= 7. AGENDAMENTOS (GET & POST /agendamentos) =================
+    const btnAbrirAgend = document.getElementById("btn-abrir-agendamento");
+    const modalAgend = document.getElementById("modal-agendamento");
+    const btnCancelarAgend = document.getElementById("btn-cancelar-agend");
+    const btnSalvarAgend = document.getElementById("btn-salvar-agend");
 
     if (btnAbrirAgend) {
-        btnAbrirAgend.addEventListener('click', () => modalAgend.style.display = 'flex');
+        btnAbrirAgend.addEventListener("click", () => modalAgend.style.display = "flex");
     }
     if (btnCancelarAgend) {
-        btnCancelarAgend.addEventListener('click', function() {
-            modalAgend.style.display = 'none';
-            document.getElementById('input-agend-animal').value = '';
-            document.getElementById('input-agend-dia').value = '';
-            document.getElementById('input-agend-horario').value = '';
-        });
+        btnCancelarAgend.addEventListener("click", () => modalAgend.style.display = "none");
     }
-    if (btnSalvarAgend) {
-        btnSalvarAgend.addEventListener('click', function() {
-            const animal = document.getElementById('input-agend-animal').value;
-            const tipoCor = document.getElementById('select-agend-tipo').value;
-            const diaValor = document.getElementById('input-agend-dia').value;
-            const horario = document.getElementById('input-agend-horario').value;
 
-            if (animal.trim() === '' || diaValor === '' || horario === '') {
-                alert('Preencha o nome, dia e horário.');
-                return;
-            }
+    async function carregarAgendamentos() {
+        const prefixo = perfilLogado === "veterinario" ? "vet-" : "";
+        const mesesMap = {
+            "08": { id: `${prefixo}coluna-agosto`, titulo: "Agosto" },
+            "09": { id: `${prefixo}coluna-setembro`, titulo: "Setembro" },
+            "10": { id: `${prefixo}coluna-outubro`, titulo: "Outubro" },
+            "11": { id: `${prefixo}coluna-novembro`, titulo: "Novembro" }
+        };
 
-            const partesData = diaValor.split('-');
-            const mesNumero = partesData[1];
-            const diaNumero = partesData[2];
-            
-            let colunaId = '';
-            if (mesNumero === '08') colunaId = 'coluna-agosto';
-            else if (mesNumero === '09') colunaId = 'coluna-setembro';
-            else if (mesNumero === '10') colunaId = 'coluna-outubro';
-            else if (mesNumero === '11') colunaId = 'coluna-novembro';
-            else {
-                alert('Escolha uma data entre Agosto e Novembro.');
-                return;
-            }
+        // Limpa colunas mantendo o título
+        Object.values(mesesMap).forEach(m => {
+            const col = document.getElementById(m.id);
+            if (col) col.innerHTML = `<div class="mes-titulo">${m.titulo}</div>`;
+        });
 
-            const colunaMes = document.getElementById(colunaId);
-            if (colunaMes) {
-                const novoBloco = document.createElement('div');
-                novoBloco.className = `bloco ${tipoCor} bloco-com-texto`; 
-                novoBloco.innerHTML = `
-                    <span>${animal}</span>
-                    <span class="bloco-data-hora">Dia ${diaNumero} às ${horario}</span>
+        try {
+            const resp = await fetch(`${API_URL}/agendamentos`);
+            if (!resp.ok) return;
+            const lista = await resp.json();
+
+            lista.forEach(ag => {
+                const dataRaw = ag.hora_agendamento || ag.data_hora;
+                if (!dataRaw) return;
+                const dt = new Date(dataRaw);
+                const mes = String(dt.getMonth() + 1).padStart(2, "0");
+                const dia = String(dt.getDate()).padStart(2, "0");
+                const hora = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+
+                const alvo = mesesMap[mes];
+                if (!alvo) return;
+
+                const col = document.getElementById(alvo.id);
+                if (!col) return;
+
+                const isVacina = (ag.tipo_servico || "").toLowerCase().includes("vacina");
+                const cor = isVacina ? "vermelho" : "cinza";
+                const nomeAnimal = ag.nome_animal || `Animal #${ag.id_animal}`;
+
+                const bloco = document.createElement("div");
+                bloco.className = `bloco ${cor} bloco-com-texto`;
+                bloco.innerHTML = `
+                    <span>${nomeAnimal}</span>
+                    <span class="bloco-data-hora">Dia ${dia} às ${hora}</span>
                 `;
-                colunaMes.insertBefore(novoBloco, colunaMes.children[1]);
-            }
-
-            modalAgend.style.display = 'none';
-            document.getElementById('input-agend-animal').value = '';
-            document.getElementById('input-agend-dia').value = '';
-            document.getElementById('input-agend-horario').value = '';
-        });
+                col.appendChild(bloco);
+            });
+        } catch (err) {
+            console.error("Erro ao carregar agendamentos:", err);
+        }
     }
 
-    // ================= 6. PLANTÃO (VETERINÁRIO) =================
-    const btnAdicionarPlantao = document.querySelector('.btn-adicionar-plantao');
-    const blocoNotasPlantao = document.getElementById('bloco-notas-plantao');
-    const btnCancelarPlantao = document.getElementById('btn-cancelar-plantao');
-    const btnSalvarPlantao = document.getElementById('btn-salvar-plantao');
-    const listaPlantoes = document.getElementById('lista-plantoes');
-    const cardVazioPlantao = document.getElementById('card-plantao-vazio');
+    if (btnSalvarAgend) {
+        btnSalvarAgend.addEventListener("click", async function() {
+            const idAnimal = parseInt(document.getElementById("select-agend-animal").value, 10);
+            const diaValor = document.getElementById("input-agend-dia").value;
+            const horario = document.getElementById("input-agend-horario").value;
+            const tipoServico = document.getElementById("select-agend-tipo").value;
+            const crmv = parseInt(document.getElementById("input-agend-crmv").value, 10);
+            const matricula = parseInt(document.getElementById("input-agend-matricula").value, 10);
 
-    if (btnAdicionarPlantao && blocoNotasPlantao) {
-        btnAdicionarPlantao.addEventListener('click', () => blocoNotasPlantao.style.display = 'flex');
-    }
-    if (btnCancelarPlantao) {
-        btnCancelarPlantao.addEventListener('click', function() {
-            blocoNotasPlantao.style.display = 'none';
-            document.getElementById('input-data-plantao').value = '';
-            document.getElementById('input-info-plantao').value = '';
-        });
-    }
-    if (btnSalvarPlantao) {
-        btnSalvarPlantao.addEventListener('click', function() {
-            const dataP = document.getElementById('input-data-plantao').value;
-            const infoP = document.getElementById('input-info-plantao').value;
-
-            if (dataP === '' || infoP === '') {
-                alert('Preencha a data e as informações.');
+            if (!idAnimal || !diaValor || !horario) {
+                alert("Preencha o animal, a data e o horário.");
                 return;
             }
-            if (cardVazioPlantao) cardVazioPlantao.style.display = 'none';
 
-            const partesData = dataP.split('-');
-            const dataFormatada = `${partesData[2]}/${partesData[1]}/${partesData[0]}`;
+            const payload = {
+                id_animal: idAnimal,
+                crmv: crmv,
+                matricula: matricula,
+                data_hora: `${diaValor} ${horario}`,
+                tipo_servico: tipoServico
+            };
 
-            const novoCard = document.createElement('div');
-            novoCard.className = 'card-plantao';
-            novoCard.innerHTML = `<div class="data-plantao">${dataFormatada}</div><div class="notas-plantao">${infoP}</div>`;
-            listaPlantoes.prepend(novoCard);
+            try {
+                const resp = await fetch(`${API_URL}/agendamentos`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const dados = await resp.json();
+                if (!resp.ok) {
+                    alert(extrairMensagemErro(dados, "Erro ao criar agendamento."));
+                    return;
+                }
 
-            blocoNotasPlantao.style.display = 'none';
-            document.getElementById('input-data-plantao').value = '';
-            document.getElementById('input-info-plantao').value = '';
+                alert("Agendamento realizado com sucesso!");
+                modalAgend.style.display = "none";
+                carregarAgendamentos();
+            } catch (err) {
+                alert("Falha de comunicação ao agendar.");
+            }
         });
     }
 
-    // ================= 7. PRONTUÁRIOS (VETERINÁRIO) =================
-    const btnNovoProntuario = document.getElementById('btn-novo-prontuario');
-    const formNovoProntuario = document.getElementById('form-novo-prontuario');
-    const btnCancelarProntuario = document.getElementById('btn-cancelar-prontuario');
-    const btnSalvarProntuario = document.getElementById('btn-salvar-prontuario');
-    const listaRegistrosProntuario = document.getElementById('lista-registros-prontuario');
-    const cardProntuarioVazio = document.getElementById('card-prontuario-vazio');
-    const listaPacientes = document.getElementById('lista-pacientes-prontuario');
-    const avisoListaVazia = document.getElementById('aviso-lista-vazia');
+    // ================= 8. INTERNAÇÕES (GET /internacoes) =================
+    async function carregarInternacoes() {
+        const grid = document.getElementById("grid-internacoes-lista");
+        if (!grid) return;
 
-    if (btnNovoProntuario && formNovoProntuario) {
-        btnNovoProntuario.addEventListener('click', () => formNovoProntuario.style.display = 'flex');
+        try {
+            const resp = await fetch(`${API_URL}/internacoes`);
+            const lista = await resp.json();
+
+            if (!lista.length) {
+                grid.innerHTML = '<p style="font-size: 26px; color: #666;">Nenhum animal internado no momento.</p>';
+                return;
+            }
+
+            grid.innerHTML = "";
+            lista.forEach(item => {
+                const grav = (item.nivel_gravidade || "Baixa").toLowerCase();
+                let classeCor = "verde";
+                if (grav.includes("med")) classeCor = "amarela";
+                else if (grav.includes("alt")) classeCor = "vermelha";
+                else if (grav.includes("crit")) classeCor = "roxa";
+
+                const nome = item.animal_nome || `Animal #${item.id_animal}`;
+                const card = document.createElement("div");
+                card.className = "card-animal";
+                card.innerHTML = `
+                    <span>${nome}</span>
+                    <div class="status-pilula ${classeCor}">${item.nivel_gravidade}</div>
+                `;
+                grid.appendChild(card);
+            });
+        } catch (err) {
+            console.error("Erro ao carregar internações:", err);
+        }
     }
 
-    function limparFormularioProntuario() {
-        if(document.getElementById('input-pront-animal')) document.getElementById('input-pront-animal').value = '';
-        if(document.getElementById('input-pront-tutor')) document.getElementById('input-pront-tutor').value = '';
-        if(document.getElementById('input-pront-patologia')) document.getElementById('input-pront-patologia').value = '';
-        if(document.getElementById('input-pront-exames')) document.getElementById('input-pront-exames').value = '';
-        if(document.getElementById('input-pront-vacinas')) document.getElementById('input-pront-vacinas').value = '';
+    // ================= 9. PRONTUÁRIOS (VETERINÁRIO) =================
+    const btnNovoProntuario = document.getElementById("btn-novo-prontuario");
+    const formNovoProntuario = document.getElementById("form-novo-prontuario");
+    const btnCancelarProntuario = document.getElementById("btn-cancelar-prontuario");
+    const btnSalvarProntuario = document.getElementById("btn-salvar-prontuario");
+
+    if (btnNovoProntuario) {
+        btnNovoProntuario.addEventListener("click", () => {
+            if (!animalSelecionadoProntuario) {
+                alert("Selecione primeiro um paciente na lista à esquerda.");
+                return;
+            }
+            formNovoProntuario.style.display = "flex";
+        });
     }
 
     if (btnCancelarProntuario) {
-        btnCancelarProntuario.addEventListener('click', function() {
-            formNovoProntuario.style.display = 'none';
-            limparFormularioProntuario();
+        btnCancelarProntuario.addEventListener("click", () => {
+            formNovoProntuario.style.display = "none";
         });
     }
 
-    if (btnSalvarProntuario) {
-        btnSalvarProntuario.addEventListener('click', function() {
-            const animal = document.getElementById('input-pront-animal').value.trim();
-            const tutor = document.getElementById('input-pront-tutor').value.trim();
-            const patologia = document.getElementById('input-pront-patologia').value.trim();
-            const exames = document.getElementById('input-pront-exames').value.trim();
-            const vacinas = document.getElementById('input-pront-vacinas').value.trim();
+    async function carregarListaPacientesProntuario() {
+        const ul = document.getElementById("lista-pacientes-prontuario");
+        if (!ul) return;
 
-            if (animal === '' || tutor === '') {
-                alert('O nome do animal e o nome do tutor são obrigatórios!');
+        try {
+            const resp = await fetch(`${API_URL}/animais`);
+            const animais = await resp.json();
+            ul.innerHTML = "";
+
+            if (!animais.length) {
+                ul.innerHTML = '<li style="font-size: 20px; color: #666;">Nenhum paciente cadastrado.</li>';
                 return;
             }
 
-            if (cardProntuarioVazio) cardProntuarioVazio.style.display = 'none';
-            if (avisoListaVazia) avisoListaVazia.style.display = 'none';
-
-            let animalJaExiste = false;
-            if(listaPacientes) {
-                const itensExistentes = listaPacientes.querySelectorAll('.li-animal');
-                itensExistentes.forEach(li => {
-                    li.classList.remove('ativo');
-                    if (li.innerText.toLowerCase() === animal.toLowerCase()) {
-                        animalJaExiste = true;
-                        li.classList.add('ativo'); 
-                    }
+            animais.forEach(a => {
+                const nome = a.nome_animal || a.nome;
+                const li = document.createElement("li");
+                li.className = "li-animal";
+                li.innerText = `${nome} (#${a.id_animal})`;
+                li.addEventListener("click", () => {
+                    document.querySelectorAll("#lista-pacientes-prontuario .li-animal").forEach(el => el.classList.remove("ativo"));
+                    li.classList.add("ativo");
+                    animalSelecionadoProntuario = { id_animal: a.id_animal, nome };
+                    document.getElementById("titulo-prontuario-animal").innerText = `${nome} - Histórico Clínico`;
+                    carregarProntuariosDoAnimal(a.id_animal);
                 });
+                ul.appendChild(li);
+            });
+        } catch (err) {
+            console.error("Erro ao listar pacientes:", err);
+        }
+    }
 
-                if (!animalJaExiste) {
-                    const novoItemLateral = document.createElement('li');
-                    novoItemLateral.className = 'li-animal ativo';
-                    novoItemLateral.innerText = animal;
-                    listaPacientes.appendChild(novoItemLateral);
+    async function carregarProntuariosDoAnimal(idAnimal) {
+        const container = document.getElementById("lista-registros-prontuario");
+        if (!container) return;
+
+        try {
+            const resp = await fetch(`${API_URL}/animais/${idAnimal}/prontuarios`);
+            const dados = await resp.json();
+            const prontuarios = dados.prontuarios || [];
+
+            if (!prontuarios.length) {
+                container.innerHTML = `
+                    <div class="card-plantao vazio">
+                        <div class="notas-plantao">Nenhum histórico clínico registrado para este paciente. Clique em "+ Novo Prontuário" para adicionar.</div>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = "";
+            prontuarios.reverse().forEach(p => {
+                const dataStr = p.data_abertura ? new Date(p.data_abertura).toLocaleDateString("pt-BR") : "Registro Clínico";
+                const card = document.createElement("div");
+                card.className = "card-plantao";
+                card.innerHTML = `
+                    <div class="data-plantao">${dataStr} — Peso: ${p.peso_atual} kg (CRMV: ${p.crmv})</div>
+                    <div class="notas-plantao">
+                        <p><strong>Queixa:</strong> ${p.queixa}</p>
+                        <p><strong>Diagnóstico:</strong> ${p.diagnostico}</p>
+                        <p><strong>Receita:</strong> ${p.receita || "Nenhuma"}</p>
+                        ${p.vacina ? `<p><strong>Vacina:</strong> ${p.vacina}</p>` : ""}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        } catch (err) {
+            console.error("Erro ao carregar prontuários:", err);
+        }
+    }
+
+    if (btnSalvarProntuario) {
+        btnSalvarProntuario.addEventListener("click", async function() {
+            if (!animalSelecionadoProntuario) return;
+
+            const payload = {
+                crmv: parseInt(document.getElementById("input-pront-crmv").value, 10),
+                id_animal: animalSelecionadoProntuario.id_animal,
+                peso_atual: parseFloat(document.getElementById("input-pront-peso").value),
+                queixa: document.getElementById("input-pront-queixa").value.trim(),
+                diagnostico: document.getElementById("input-pront-diagnostico").value.trim(),
+                receita: document.getElementById("input-pront-receita").value.trim() || null,
+                vacina: document.getElementById("input-pront-vacinas").value.trim() || null
+            };
+
+            if (!payload.peso_atual || !payload.queixa || !payload.diagnostico) {
+                alert("Preencha peso, queixa e diagnóstico.");
+                return;
+            }
+
+            try {
+                const resp = await fetch(`${API_URL}/prontuarios`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-perfil": "veterinario"
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const dados = await resp.json();
+                if (!resp.ok) {
+                    alert(extrairMensagemErro(dados, "Erro ao salvar prontuário."));
+                    return;
                 }
+
+                alert("Prontuário salvo com sucesso!");
+                formNovoProntuario.style.display = "none";
+                carregarProntuariosDoAnimal(animalSelecionadoProntuario.id_animal);
+            } catch (err) {
+                alert("Falha ao comunicar com a API.");
             }
-
-            if(document.getElementById('titulo-prontuario-animal')) {
-                document.getElementById('titulo-prontuario-animal').innerText = animal + ' - Histórico Clínico';
-            }
-
-            const dataHoje = new Date().toLocaleDateString('pt-BR'); 
-            const novoCard = document.createElement('div');
-            novoCard.className = 'card-plantao'; 
-            novoCard.innerHTML = `
-                <div class="data-plantao">${animal} <span style="font-size: 20px; font-weight: normal;">(Tutor: ${tutor})</span> - <span style="font-size: 20px; color: #666;">${dataHoje}</span></div>
-                <div class="notas-plantao">
-                    <p style="margin-bottom: 10px;"><strong>Patologia / Estado:</strong> ${patologia || 'Não informado'}</p>
-                    <p style="margin-bottom: 10px;"><strong>Exames:</strong> ${exames || 'Nenhum exame'}</p>
-                    <p><strong>Vacinações:</strong> ${vacinas || 'Não informado'}</p>
-                </div>
-            `;
-            
-            if(listaRegistrosProntuario) listaRegistrosProntuario.prepend(novoCard);
-
-            formNovoProntuario.style.display = 'none';
-            limparFormularioProntuario();
         });
     }
 
-}); // Fim do documento
+    // ================= 10. PLANTÃO (VETERINÁRIO) =================
+    const btnAbrirPlantao = document.getElementById("btn-abrir-plantao");
+    const blocoNotasPlantao = document.getElementById("bloco-notas-plantao");
+    const btnCancelarPlantao = document.getElementById("btn-cancelar-plantao");
+    const btnSalvarPlantao = document.getElementById("btn-salvar-plantao");
+    const filtroPlantaoAnimal = document.getElementById("select-plantao-animal-filtro");
+
+    if (btnAbrirPlantao) {
+        btnAbrirPlantao.addEventListener("click", () => blocoNotasPlantao.style.display = "flex");
+    }
+    if (btnCancelarPlantao) {
+        btnCancelarPlantao.addEventListener("click", () => blocoNotasPlantao.style.display = "none");
+    }
+    if (filtroPlantaoAnimal) {
+        filtroPlantaoAnimal.addEventListener("change", function() {
+            if (this.value) carregarPlantoesAnimal(parseInt(this.value, 10));
+        });
+    }
+
+    async function carregarPlantoesAnimal(idAnimal) {
+        const lista = document.getElementById("lista-plantoes");
+        if (!lista) return;
+
+        try {
+            const resp = await fetch(`${API_URL}/plantao/${idAnimal}`);
+            const registros = await resp.json();
+
+            if (!registros.length) {
+                lista.innerHTML = `
+                    <div class="card-plantao vazio">
+                        <div class="notas-plantao">Nenhum registro de plantão encontrado para este animal.</div>
+                    </div>`;
+                return;
+            }
+
+            lista.innerHTML = "";
+            registros.reverse().forEach(r => {
+                const dt = r.chegada_plantao ? new Date(r.chegada_plantao).toLocaleString("pt-BR") : "Plantão";
+                const card = document.createElement("div");
+                card.className = "card-plantao";
+                card.innerHTML = `
+                    <div class="data-plantao">${dt} — CRMV: ${r.crmv} (${r.status_plantao})</div>
+                    <div class="notas-plantao">${r.evolucao_plantao || ""}</div>
+                `;
+                lista.appendChild(card);
+            });
+        } catch (err) {
+            console.error("Erro ao carregar plantões:", err);
+        }
+    }
+
+    if (btnSalvarPlantao) {
+        btnSalvarPlantao.addEventListener("click", async function() {
+            const idAnimal = parseInt(document.getElementById("select-plantao-animal").value, 10);
+            const crmv = parseInt(document.getElementById("input-plantao-crmv").value, 10);
+            const evolucao = document.getElementById("input-info-plantao").value.trim();
+
+            if (!idAnimal || !evolucao) {
+                alert("Selecione o animal e preencha a evolução do plantão.");
+                return;
+            }
+
+            try {
+                const resp = await fetch(`${API_URL}/plantao`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-perfil": "veterinario"
+                    },
+                    body: JSON.stringify({
+                        id_animal: idAnimal,
+                        crmv: crmv,
+                        evolucao_plantao: evolucao
+                    })
+                });
+                const dados = await resp.json();
+                if (!resp.ok) {
+                    alert(extrairMensagemErro(dados, "Erro ao registrar plantão."));
+                    return;
+                }
+
+                alert("Registro de plantão salvo!");
+                blocoNotasPlantao.style.display = "none";
+                document.getElementById("input-info-plantao").value = "";
+                if (filtroPlantaoAnimal) filtroPlantaoAnimal.value = idAnimal;
+                carregarPlantoesAnimal(idAnimal);
+            } catch (err) {
+                alert("Falha de comunicação ao salvar plantão.");
+            }
+        });
+    }
+});
