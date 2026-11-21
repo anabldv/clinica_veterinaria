@@ -55,7 +55,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         if "senha" in loc:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content={"detail": {"mensagem": "Senha fraca. A senha deve ter no mínimo 6 caracteres."}}
+                content={"detail": {"mensagem": "Senha fraca. Deve possuir no mínimo 8 caracteres, incluindo letra maiúscula, minúscula, número e caractere especial."}}
             )
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -67,6 +67,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # ESTRUTURAS EM MEMÓRIA (Para execução isolada de testes / CI sem Oracle)
 # ==============================================================================
 banco_usuarios: Dict[int, dict] = {}
+banco_veterinarios: Dict[int, dict] = {}
+banco_recepcao: Dict[int, dict] = {}
 banco_tutores: Dict[int, dict] = {}
 banco_animais: Dict[int, dict] = {}
 banco_agendamentos: Dict[int, dict] = {}
@@ -76,6 +78,8 @@ banco_vacinacoes: Dict[int, list] = {}
 banco_internacoes: Dict[int, dict] = {}
 banco_plantoes: Dict[int, list] = {}
 
+db_veterinarios = banco_veterinarios
+db_recepcao = banco_recepcao
 db_usuarios = banco_usuarios
 db_tutores = banco_tutores
 db_animais = banco_animais
@@ -86,17 +90,74 @@ db_agendamentos = banco_agendamentos
 # MODELOS DE DADOS (PYDANTIC)
 # ==============================================================================
 
-class UsuarioCadastro(BaseModel):
-    nome: Optional[str] = None
+class VeterinarioCadastro(BaseModel):
+    nome: str
     email: EmailStr
     senha: str
-    perfil: Optional[str] = "Recepcao"
+    crmv: int
+    cnpj: str
+    especialidade: str
 
     @field_validator("senha")
     @classmethod
     def validar_senha(cls, v: str):
-        if len(v) < 6:
-            raise ValueError("Senha fraca: a senha deve possuir ao menos 6 caracteres.")
+        if (
+            len(v) < 8
+            or not re.search(r"[A-Z]", v)
+            or not re.search(r"[a-z]", v)
+            or not re.search(r"[0-9]", v)
+            or not re.search(r"[^A-Za-z0-9]", v)
+        ):
+            raise ValueError("Senha fraca.")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validar_email(cls, v):
+        if not re.fullmatch(r"[A-Za-z0-9._%+-]+@petegato\.com", str(v)):
+            raise ValueError("O e-mail deve pertencer ao domínio petegato.com.")
+        return v
+
+    @field_validator("cnpj")
+    @classmethod
+    def validar_cnpj(cls, v):
+        if not re.fullmatch(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}", v):
+            raise ValueError("CNPJ inválido.")
+        return v
+
+
+class RecepcaoCadastro(BaseModel):
+    nome: str
+    email: EmailStr
+    senha: str
+    matricula: int
+    cpf: str
+
+    @field_validator("senha")
+    @classmethod
+    def validar_senha(cls, v: str):
+        if (
+            len(v) < 8
+            or not re.search(r"[A-Z]", v)
+            or not re.search(r"[a-z]", v)
+            or not re.search(r"[0-9]", v)
+            or not re.search(r"[^A-Za-z0-9]", v)
+        ):
+            raise ValueError("Senha fraca.")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validar_email(cls, v):
+        if not re.fullmatch(r"[A-Za-z0-9._%+-]+@petegato\.com", str(v)):
+            raise ValueError("O e-mail deve pertencer ao domínio petegato.com.")
+        return v
+
+    @field_validator("cpf")
+    @classmethod
+    def validar_cpf(cls, v):
+        if not re.fullmatch(r"\d{3}\.\d{3}\.\d{3}-\d{2}", v):
+            raise ValueError("CPF inválido.")
         return v
 
 
@@ -230,61 +291,169 @@ def verificar_status_sistema():
 # ROTAS - SPRINT 1 E AUTENTICAÇÃO
 # ==============================================================================
 
-@app.post("/usuarios", status_code=status.HTTP_201_CREATED, tags=["Usuários"])
-def cadastrar_usuario(usuario: UsuarioCadastro):
+@app.post("/veterinarios", status_code=status.HTTP_201_CREATED, tags=["Veterinários"])
+def cadastrar_veterinario(veterinario: VeterinarioCadastro):
+
     if usando_modo_memoria():
         for u in banco_usuarios.values():
-            if u["email"] == usuario.email:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={"mensagem": "E-mail já cadastrado no sistema."}
-                )
+            if u["email"] == veterinario.email:
+                raise HTTPException(status_code=400, detail="E-mail já cadastrado.")
+
+        if veterinario.crmv in banco_veterinarios:
+            raise HTTPException(status_code=400, detail="CRMV já cadastrado.")
+
         novo_id = len(banco_usuarios) + 1
-        novo_usuario = {
+
+        banco_usuarios[novo_id] = {
             "id_usuario": novo_id,
-            "nome": usuario.nome,
-            "email": usuario.email,
-            "senha": usuario.senha,
-            "perfil": usuario.perfil
+            "nome": veterinario.nome,
+            "email": veterinario.email,
+            "senha": veterinario.senha,
+            "perfil": "Veterinario"
         }
-        banco_usuarios[novo_id] = novo_usuario
-        resp = {k: v for k, v in novo_usuario.items() if k != "senha"}
-        return {"usuario": resp, "mensagem": "Usuário criado com sucesso"}
+
+        banco_veterinarios[veterinario.crmv] = {
+            "crmv": veterinario.crmv,
+            "cnpj": veterinario.cnpj,
+            "especialidade": veterinario.especialidade,
+            "id_usuario": novo_id
+        }
+
+        return {
+            "mensagem": "Veterinário cadastrado com sucesso!",
+            "id_usuario": novo_id,
+            "crmv": veterinario.crmv
+        }
 
     conexao = obter_conexao()
     cursor = conexao.cursor()
+
     try:
         cursor.execute("SELECT NVL(MAX(id_usuario), 0) + 1 FROM tb_usuario")
         novo_id = cursor.fetchone()[0]
 
-        sql = """
-            INSERT INTO tb_usuario (id_usuario, nome_usuario, email_usuario, senha, perfil)
-            VALUES (:id, :nome, :email, :senha, :perfil)
-        """
-        cursor.execute(sql, {
+        cursor.execute("""
+            INSERT INTO tb_usuario
+                (id_usuario, nome_usuario, email_usuario, senha, perfil)
+            VALUES
+                (:id, :nome, :email, :senha, 'Veterinario')
+        """, {
             "id": novo_id,
-            "nome": usuario.nome,
-            "email": usuario.email,
-            "senha": usuario.senha,
-            "perfil": usuario.perfil
+            "nome": veterinario.nome,
+            "email": veterinario.email,
+            "senha": veterinario.senha
         })
+
+        cursor.execute("""
+            INSERT INTO tb_veterinario
+                (crmv, cnpj, especialidade, id_usuario)
+            VALUES
+                (:crmv, :cnpj, :especialidade, :id_usuario)
+        """, {
+            "crmv": veterinario.crmv,
+            "cnpj": veterinario.cnpj,
+            "especialidade": veterinario.especialidade,
+            "id_usuario": novo_id
+        })
+
         conexao.commit()
+
         return {
-            "usuario": {
-                "id_usuario": novo_id,
-                "nome": usuario.nome,
-                "email": usuario.email,
-                "perfil": usuario.perfil
-            },
-            "mensagem": "Usuário criado com sucesso"
+            "mensagem": "Veterinário cadastrado com sucesso!",
+            "id_usuario": novo_id,
+            "crmv": veterinario.crmv
         }
+
     except Exception as e:
         conexao.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
     finally:
         cursor.close()
         conexao.close()
 
+@app.post("/recepcao", status_code=status.HTTP_201_CREATED, tags=["Recepção"])
+def cadastrar_recepcao(recepcao: RecepcaoCadastro):
+
+    if usando_modo_memoria():
+        for u in banco_usuarios.values():
+            if u["email"] == recepcao.email:
+                raise HTTPException(status_code=400, detail="E-mail já cadastrado.")
+
+        if recepcao.matricula in banco_recepcao:
+            raise HTTPException(status_code=400, detail="Matrícula já cadastrada.")
+
+        for r in banco_recepcao.values():
+            if r["cpf_recepcao"] == recepcao.cpf:
+                raise HTTPException(status_code=400, detail="CPF já cadastrado.")
+
+        novo_id = len(banco_usuarios) + 1
+
+        banco_usuarios[novo_id] = {
+            "id_usuario": novo_id,
+            "nome": recepcao.nome,
+            "email": recepcao.email,
+            "senha": recepcao.senha,
+            "perfil": "Recepcao"
+        }
+
+        banco_recepcao[recepcao.matricula] = {
+            "matricula": recepcao.matricula,
+            "cpf_recepcao": recepcao.cpf,
+            "id_usuario": novo_id
+        }
+
+        return {
+            "mensagem": "Recepcionista cadastrado com sucesso!",
+            "id_usuario": novo_id,
+            "matricula": recepcao.matricula
+        }
+
+    conexao = obter_conexao()
+    cursor = conexao.cursor()
+
+    try:
+        cursor.execute("SELECT NVL(MAX(id_usuario), 0) + 1 FROM tb_usuario")
+        novo_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO tb_usuario
+                (id_usuario, nome_usuario, email_usuario, senha, perfil)
+            VALUES
+                (:id, :nome, :email, :senha, 'Recepcao')
+        """, {
+            "id": novo_id,
+            "nome": recepcao.nome,
+            "email": recepcao.email,
+            "senha": recepcao.senha
+        })
+
+        cursor.execute("""
+            INSERT INTO tb_recepcao
+                (matricula, cpf_recepcao, id_usuario)
+            VALUES
+                (:matricula, :cpf, :id_usuario)
+        """, {
+            "matricula": recepcao.matricula,
+            "cpf": recepcao.cpf,
+            "id_usuario": novo_id
+        })
+
+        conexao.commit()
+
+        return {
+            "mensagem": "Recepcionista cadastrado com sucesso!",
+            "id_usuario": novo_id,
+            "matricula": recepcao.matricula
+        }
+
+    except Exception as e:
+        conexao.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+    finally:
+        cursor.close()
+        conexao.close()
 
 @app.post("/login", status_code=status.HTTP_200_OK, tags=["Usuários"])
 def realizar_login(credenciais: UsuarioLogin):
