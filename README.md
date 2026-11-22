@@ -2,7 +2,7 @@
 
 Sistema de gestão clínica veterinária voltado para a centralização de prontuários eletrônicos, agendamento sem conflitos de horários e controle do histórico de vacinação com validação de intervalos clínicos mínimos.
 
-**Deploy:** <https://pet-e-gato.web.app/>  
+**Deploy:** [Pet e Gatô](https://pet-e-gato.web.app/)  
 **Equipe:** 
 <br>— Ana Baldivia (RA 2840482423002) 
 <br>— Alexandre Carvalho (RA 2840482423027) 
