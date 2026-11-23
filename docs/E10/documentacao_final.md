@@ -16,8 +16,12 @@
 ## 2. Desvios do escopo original (vs. E2b)
 | Item | Mudou? | Justificativa |
 |---|---|---|
+| Autenticação e controle de acesso | Simplificado (cabeçalho `x-perfil` e `/login` direto) | Priorização das regras de negócio clínicas (prontuários, vacinas, internações e plantão) e integração front-end/back-end dentro do prazo das 4 sprints |
+| Persistência em ambiente de CI (GitHub Actions) | Adicionado modo híbrido (`oracledb` + memória em testes) | O servidor Linux do GitHub Actions não possui instância Oracle Database local; a alternância automática permite validar os 27 testes automatizados no pipeline de CI sem alterar as queries SQL de produção |
+| Hospedagem do Front-end | Definida no Firebase Hosting (`pet-e-gato.web.app`) | Garante disponibilização pública imediata da interface estática (HTML/CSS/JS) com HTTPS nativo para validação do cliente |
 
 ## 3. Arquitetura final (resumo)
-[Diagrama ou descrição textual das camadas/serviços, se mudou desde a E4]
+Sem mudanças estruturais desde a E4: front-end em **HTML5, CSS3 e JavaScript** (hospedado no Firebase Hosting) consumindo via REST/JSON a API desenvolvida em **Python com FastAPI**, conectada ao banco de dados relacional **Oracle Database** (`oracledb`) com 8 tabelas principais (`tb_usuario`, `tb_tutor`, `tb_animal`, `tb_agendamento`, `tb_prontuario`, `tb_vacinacao`, `tb_plantao` e `tb_internacao`). Na Sprint 4 foram adicionados o middleware de **CORS**, o endpoint de monitoramento contínuo **`GET /health`** (disponibilidade 24/7) e o pipeline automatizado de testes (**Pytest + GitHub Actions**).
 
-## 4. Como contribuir/rodar (aponta para o README atualizado)
+## 4. Como contribuir/rodar
+Ver [`README.md`](./README.md) na raiz — atualizado nesta entrega com o link de deploy definitivo (<https://pet-e-gato.web.app/>), instruções de configuração do Oracle Database (`DB_USER`, `DB_PASSWORD`, `DB_DSN`) e comandos para execução da API (`uvicorn`) e da suíte de testes (`pytest`).
