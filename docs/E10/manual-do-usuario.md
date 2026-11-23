@@ -1,63 +1,61 @@
-# Manual do Usuário — [Nome do Projeto]
+# Manual do Usuário — Pet & Gatô
 
-## Para [Perfil 1]
-### Como [tarefa 1]
-1. [passo]
-2. [passo]
-[screenshot]
+**Acesso ao sistema:** <https://pet-e-gato.web.app/>
 
-## Para [Perfil 2]
-### Como [tarefa 1]
+## Para Recepção
 
-## Perguntas frequentes
-**[Pergunta]**
-[Resposta]
+### Como cadastrar um tutor e vincular seus animais
+1. Acesse o sistema com suas credenciais de perfil **Recepção**.
+2. No menu principal, abra a aba **Tutores** e clique em **Novo Tutor**.
+3. Preencha nome completo, CPF, telefone, e-mail e observações, e clique em **Salvar**. O sistema bloqueia automaticamente cadastros com CPF já existente.
+   [screenshot: tela de cadastro de tutor]
+4. Em seguida, acesse a aba **Animais**, clique em **Novo Animal**, selecione o tutor recém-cadastrado e informe nome, espécie, raça e sexo do pet.
+5. Ao salvar, o vínculo fica disponível imediatamente para agendamentos e consultas.
+   [screenshot: tela de cadastro de animal vinculado ao tutor]
 
-# Manual do Usuário — EstágioFatec
+### Como agendar ou cancelar uma consulta/vacinação
+1. Acesse a aba **Agendamentos** no menu superior e clique em **Novo Agendamento**.
+2. Selecione o tutor, o animal, o veterinário responsável, a data/hora futura e o tipo de serviço (consulta ou vacinação).
+3. O sistema valida automaticamente conflitos de horário para o mesmo veterinário e exige um intervalo mínimo de **21 dias** entre aplicações de vacinas.
+   [screenshot: formulário de agendamento]
+4. Para cancelar um atendimento, localize o registro na listagem de agendamentos (filtrando por veterinário ou status) e clique em **Cancelar**.
 
-## Para Alunos
+---
 
-### Como me candidatar a uma vaga de estágio
-1. Faça login com seu e-mail institucional (@fatec.sp.gov.br) e senha.
-2. Na página inicial, você verá apenas as vagas compatíveis com o seu curso.
-3. Clique em uma vaga para ver os detalhes: empresa, descrição e número de posições.
-4. Clique em "Candidatar-se". Você receberá a confirmação na tela.
-   [screenshot: tela de detalhe da vaga com botão "Candidatar-se"]
-5. Não é possível se candidatar duas vezes à mesma vaga — o botão fica desabilitado se você
-   já se candidatou.
+## Para Veterinários
 
-### Como acompanhar minha candidatura
-1. Acesse "Minhas candidaturas" no menu superior.
-2. O status aparece como **Pendente**, **Aprovada** ou **Recusada**.
-3. Se recusada, o motivo informado pelo coordenador aparece abaixo do status.
-   [screenshot: tela "Minhas candidaturas"]
+### Como registrar um prontuário clínico e aplicar vacinas
+1. Acesse o sistema com suas credenciais de perfil **Veterinário** (apenas veterinários possuem permissão de escrita clínica).
+2. Abra a ficha do paciente na aba **Prontuários** e clique em **Novo Atendimento**.
+3. Informe o seu **CRMV**, o peso atual do animal (deve ser maior que zero), a queixa principal, anamnese, diagnóstico e receita.
+4. Caso uma vacina seja aplicada no atendimento, preencha o nome da vacina, lote e data da próxima dose para atualizar o histórico de imunização do pet.
+   [screenshot: tela de preenchimento de prontuário clínico]
 
-## Para Coordenadores
+### Como gerenciar internações e registrar evoluções de plantão
+1. Para internar um paciente, acesse a aba **Internações**, clique em **Nova Internação**, selecione o animal, informe seu CRMV, o motivo e o nível de gravidade (**Baixa**, **Médio**, **Alta** ou **Crítica**).
+2. O sistema impede que um animal já internado receba uma segunda internação ativa simultaneamente.
+   [screenshot: tela de gestão de internações e níveis de gravidade]
+3. Para registrar o acompanhamento durante o turno, acesse a aba **Plantão**, selecione o paciente internado e insira a evolução clínica (permitido um registro por turno **Diurno** ou **Noturno**).
+4. Para dar alta ou atualizar o quadro clínico, abra os detalhes da internação e altere o status para **Alta Médica** ou **Em Observação**.
+   [screenshot: tela de evolução de plantão e atualização de status]
 
-### Como cadastrar um convênio
-1. Acesse "Empresas" no menu e selecione a empresa (ou cadastre uma nova).
-2. Clique em "Novo convênio", informe data de início e fim, e selecione os cursos abrangidos.
-3. O sistema não permite salvar se a data de fim for anterior à data de início.
-   [screenshot: formulário de novo convênio]
+### Como acompanhar o painel geral (Dashboard)
+1. Acesse **Dashboard** no menu principal.
+2. O painel exibe em tempo real o total de tutores, animais cadastrados, agendamentos e internações ativas agrupadas por nível de gravidade.
+   [screenshot: painel geral (Dashboard) com indicadores em tempo real]
 
-### Como aprovar uma candidatura
-1. Acesse "Candidaturas pendentes".
-2. Clique em "Aprovar" ou "Recusar" (recusar exige justificativa em texto).
-3. Ao aprovar, o sistema gera automaticamente um encaminhamento com data de início/fim.
-   [screenshot: fila de candidaturas pendentes]
-
-### Como consultar o painel de estágios por curso
-1. Acesse "Painel" no menu.
-2. O gráfico mostra o total de alunos em estágio ativo, agrupado por curso.
-3. Convênios a 30 dias ou menos do vencimento aparecem destacados em laranja no topo da página.
-   [screenshot: painel com gráfico por curso e alertas]
+---
 
 ## Perguntas frequentes
 
-**Não encontro nenhuma vaga na minha lista, o que fazer?**
-Só aparecem vagas vinculadas a convênios vigentes para o seu curso. Se você acha que deveria
-haver vagas, procure a coordenação de estágios.
+**Por que não consigo abrir ou editar um prontuário clínico?**
+Por segurança e conformidade clínica, apenas usuários autenticados com perfil **Veterinário** podem criar prontuários ou registrar evoluções de plantão. Usuários de **Recepção** têm acesso apenas a cadastros e agendamentos.
 
-**Posso editar minha candidatura depois de enviada?**
-Não nesta versão — se precisar desistir, entre em contato com a coordenação, que pode
-cancelar a candidatura manualmente.
+**Tentei agendar uma vacina para um pet e o sistema bloqueou, o que fazer?**
+O sistema aplica uma trava de segurança clínica que exige um intervalo mínimo de **21 dias** entre doses de vacina para o mesmo animal. Verifique o histórico de vacinação do pet antes de escolher a nova data.
+
+**Não consigo cadastrar um animal sem antes cadastrar o tutor?**
+Não. Para manter a integridade referencial dos dados, todo animal precisa estar obrigatoriamente vinculado a um tutor previamente cadastrado no sistema.
+
+**Como saber se a API e o banco de dados estão online no plantão noturno?**
+O sistema opera em regime **24/7** e possui monitoramento contínuo através do endpoint `/health`, que verifica em tempo real a conexão com o banco de dados e identifica automaticamente o turno vigente (Diurno das 07h às 19h ou Noturno das 19h às 07h).
