@@ -24,6 +24,4 @@
 ## Aprendizado da equipe
 Aprendemos na prática que contratos de API bem definidos, modelagem relacional rigorosa e automação de testes no CI evitam regressões e retrabalho na integração entre front-end e back-end. Além disso, o uso disciplinado de branches curtas, revisões de Pull Request e retrospectivas aplicadas transformou problemas de merge em entregas contínuas e previsíveis ao longo das quatro sprints.
 
-## Imagens enviadas
-- capa.png (1280×720)
-- tela-1.png, tela-2.png, tela-3.png (1920×1080)
+
